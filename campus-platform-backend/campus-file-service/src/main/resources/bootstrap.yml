@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: campus-file-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yml
+        shared-configs:
+          - data-id: campus-common.yml
+            group: DEFAULT_GROUP
+            refresh: true

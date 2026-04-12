@@ -1,0 +1,46 @@
+server:
+  port: 9000
+
+spring:
+  application:
+    name: campus-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+      config:
+        server-addr: 127.0.0.1:8848
+        file-extension: yml
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: false
+      routes:
+        - id: user-service
+          uri: lb://campus-user-service
+          predicates:
+            - Path=/user/**
+        - id: club-service
+          uri: lb://campus-club-service
+          predicates:
+            - Path=/club/**
+        - id: im-service
+          uri: lb://campus-im-service
+          predicates:
+            - Path=/im/**
+        - id: seckill-service
+          uri: lb://campus-seckill-service
+          predicates:
+            - Path=/seckill/**
+        - id: file-service
+          uri: lb://campus-file-service
+          predicates:
+            - Path=/file/**
