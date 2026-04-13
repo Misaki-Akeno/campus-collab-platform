@@ -22,6 +22,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(1001, "用户不存在"),
     USERNAME_EXISTS(1002, "用户名已存在"),
     PASSWORD_ERROR(1003, "密码错误"),
+    PASSWORD_SAME(1005, "新密码不能与原密码相同"),
     USER_DISABLED(1004, "账号已被禁用"),
 
     // 社团域错误 1011-1020

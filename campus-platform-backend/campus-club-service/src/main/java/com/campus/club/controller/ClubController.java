@@ -2,8 +2,11 @@ package com.campus.club.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.campus.api.club.ClubBasicDTO;
+import com.campus.api.club.ClubMemberDTO;
 import com.campus.club.dto.CreateAnnouncementRequest;
 import com.campus.club.dto.CreateClubRequest;
+import com.campus.club.dto.MemberListItemDTO;
+import com.campus.club.dto.UpdateMemberRoleRequest;
 import com.campus.club.entity.Club;
 import com.campus.club.entity.ClubAnnouncement;
 import com.campus.club.service.ClubService;
@@ -14,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -78,7 +82,7 @@ public class ClubController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long clubId) {
         clubService.joinClub(clubId, userId);
-        return Result.ok("入社申请已提交，等待社长审批");
+        return Result.ok();
     }
 
     /** POST /api/v1/clubs/{clubId}/members/{memberId}/approve — 审批入社申请（社长/副社长） */
@@ -109,5 +113,54 @@ public class ClubController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
         return Result.ok(clubService.listAnnouncements(clubId, page, size));
+    }
+
+    /** GET /api/v1/clubs/{clubId}/members — 社团成员列表（须是社团成员） */
+    @GetMapping("/{clubId}/members")
+    public Result<Page<MemberListItemDTO>> listMembers(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long clubId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(clubService.listMembers(clubId, userId, page, size));
+    }
+
+    /** DELETE /api/v1/clubs/{clubId}/members/{memberId} — 踢出成员（社长/副社长） */
+    @DeleteMapping("/{clubId}/members/{memberId}")
+    public Result<Void> kickMember(
+            @RequestHeader("X-User-Id") Long operatorId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId) {
+        clubService.kickMember(clubId, operatorId, memberId);
+        return Result.ok();
+    }
+
+    /** PUT /api/v1/clubs/{clubId}/members/{targetUserId}/role — 修改成员角色（仅社长） */
+    @PutMapping("/{clubId}/members/{targetUserId}/role")
+    public Result<Void> updateMemberRole(
+            @RequestHeader("X-User-Id") Long operatorId,
+            @PathVariable Long clubId,
+            @PathVariable Long targetUserId,
+            @Valid @RequestBody UpdateMemberRoleRequest request) {
+        clubService.updateMemberRole(clubId, operatorId, targetUserId, request.getMemberRole());
+        return Result.ok();
+    }
+
+    /** POST /api/v1/clubs/{clubId}/quit — 退出社团（社长不可退出） */
+    @PostMapping("/{clubId}/quit")
+    public Result<Void> quitClub(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long clubId) {
+        clubService.quitClub(clubId, userId);
+        return Result.ok();
+    }
+
+    /**
+     * GET /api/v1/clubs/internal/members — 内部查询用户社团关系（供 user-service Feign 调用）。
+     * 注：字面量路径 /internal/members 优先于路径变量 /{clubId}/members，Spring MVC 不冲突。
+     */
+    @GetMapping("/internal/members")
+    public Result<List<ClubMemberDTO>> getUserClubs(@RequestParam Long userId) {
+        return Result.ok(clubService.getUserClubs(userId));
     }
 }

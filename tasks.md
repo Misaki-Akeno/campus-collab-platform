@@ -267,20 +267,6 @@ ARCHITECTURE.md §7 定义了三大支柱，均未落地：
 
 ---
 
-## 五、设计问题（已修复 / 待评审）
-
-| 编号 | 问题描述 | 状态 | 处理结果 |
-|------|---------|------|---------|
-| **A-01** | `createClub` 使用 Query 参数传 `name/description/category`，破坏 REST 规范 | ✅ 已修复 | 改为 `@RequestBody CreateClubRequest`，添加 `@Valid` 参数校验 |
-| **A-02** | 秒杀"先建订单再 Lua"存在幽灵订单风险 | ✅ 已修复 | 改为先 Lua 后建单，订单直接置 SUCCESS，Kafka 仅对账 |
-| **A-03** | `UserFeignClient` 路径含 Gateway 前缀 `/user/`，Feign 直连时路径错误 | ✅ 已修复 | 路径改为 `/api/v1/users/{userId}/basic`，补全 ClubFeignClient/FileFeignClient |
-| **A-04** | MySQL/MinIO 密码硬编码在 application.yml | ✅ 已修复 | 所有服务改为 `${ENV_VAR}` 引用，`.env.example` 补全模板 |
-| **A-05** | IM `syncMessages` 全量 LIMIT 500，无会话配额均衡 | 📋 待 Phase 3 | 代码注释已标注，Phase 3 换 Kafka offset 方案 |
-| **A-06** | 文件秒传仅校验 MD5，存在 Hash Flooding 风险 | ✅ 已修复 | 改为 MD5 + fileSize 双重校验 |
-| **A-07** | `joinClub` 直接加入，与架构文档"社长审批入团"矛盾 | ✅ 已修复 | 改为申请待审批流程，新增 `club_member.status` 字段和审批接口 |
-
----
-
 ## 六、优先级路线图
 
 ### Phase 2（当前阶段，优先级最高）

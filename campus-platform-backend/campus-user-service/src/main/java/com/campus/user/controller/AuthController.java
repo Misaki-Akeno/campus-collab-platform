@@ -45,4 +45,26 @@ public class AuthController {
     public Result<MeResponse> getMe(@RequestHeader("X-User-Id") Long userId) {
         return Result.ok(userService.getMe(userId));
     }
+
+    /**
+     * POST /api/v1/logout — 用户登出。
+     * accessToken 通过 Request Body 传递，原因：Gateway 会移除 Authorization Header，
+     * 无法在业务服务侧直接读取，改用 Body 传递以便提取 jti 写入黑名单。
+     */
+    @PostMapping("/logout")
+    public Result<Void> logout(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody LogoutRequest request) {
+        userService.logout(request.getAccessToken(), userId);
+        return Result.ok("已成功登出", null);
+    }
+
+    /** PUT /api/v1/me/password — 修改密码（改密后需重新登录） */
+    @PutMapping("/me/password")
+    public Result<Void> changePassword(
+            @RequestHeader("X-User-Id") Long userId,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        userService.changePassword(userId, request);
+        return Result.ok("密码修改成功，请重新登录", null);
+    }
 }

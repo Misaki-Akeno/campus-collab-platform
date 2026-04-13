@@ -3,9 +3,13 @@ package com.campus.club.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.api.club.ClubMemberDTO;
 import com.campus.club.constant.ClubStatus;
+import com.campus.club.constant.MemberRole;
+import com.campus.club.constant.MemberStatus;
 import com.campus.club.dto.CreateAnnouncementRequest;
 import com.campus.club.dto.CreateClubRequest;
+import com.campus.club.dto.MemberListItemDTO;
 import com.campus.club.entity.Club;
 import com.campus.club.entity.ClubAnnouncement;
 import com.campus.club.entity.ClubMember;
@@ -22,19 +26,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ClubServiceImpl implements ClubService {
 
-    private static final int MEMBER_ROLE_LEADER = 2;
-    private static final int MEMBER_ROLE_NORMAL = 0;
-
-    /** 成员记录状态 */
-    private static final int MEMBER_STATUS_PENDING  = 0;
-    private static final int MEMBER_STATUS_APPROVED = 1;
-    private static final int MEMBER_STATUS_REJECTED = 2;
+    private static final int CLUB_MEMBER_BATCH_SIZE = 500;
 
     private final ClubMapper clubMapper;
     private final ClubMemberMapper clubMemberMapper;
@@ -58,12 +61,11 @@ public class ClubServiceImpl implements ClubService {
         club.setMemberCount(1);
         clubMapper.insert(club);
 
-        // 创建者自动成为社长，直接通过无需审批
         ClubMember leader = new ClubMember();
         leader.setUserId(leaderId);
         leader.setClubId(club.getId());
-        leader.setMemberRole(MEMBER_ROLE_LEADER);
-        leader.setStatus(MEMBER_STATUS_APPROVED);
+        leader.setMemberRole(MemberRole.LEADER.getCode());
+        leader.setStatus(MemberStatus.APPROVED.getCode());
         leader.setJoinTime(LocalDateTime.now());
         clubMemberMapper.insert(leader);
 
@@ -112,32 +114,29 @@ public class ClubServiceImpl implements ClubService {
             throw new BizException(ErrorCode.CLUB_NOT_FOUND);
         }
 
-        // 已是通过状态的成员
         Long approvedCount = clubMemberMapper.selectCount(
                 new LambdaQueryWrapper<ClubMember>()
                         .eq(ClubMember::getClubId, clubId)
                         .eq(ClubMember::getUserId, userId)
-                        .eq(ClubMember::getStatus, MEMBER_STATUS_APPROVED));
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode()));
         if (approvedCount > 0) {
             throw new BizException(ErrorCode.ALREADY_MEMBER);
         }
 
-        // 已有待审核申请
         Long pendingCount = clubMemberMapper.selectCount(
                 new LambdaQueryWrapper<ClubMember>()
                         .eq(ClubMember::getClubId, clubId)
                         .eq(ClubMember::getUserId, userId)
-                        .eq(ClubMember::getStatus, MEMBER_STATUS_PENDING));
+                        .eq(ClubMember::getStatus, MemberStatus.PENDING.getCode()));
         if (pendingCount > 0) {
             throw new BizException(ErrorCode.JOIN_REQUEST_EXISTS);
         }
 
-        // 创建待审核申请（不填 joinTime，不增加 member_count）
         ClubMember member = new ClubMember();
         member.setUserId(userId);
         member.setClubId(clubId);
-        member.setMemberRole(MEMBER_ROLE_NORMAL);
-        member.setStatus(MEMBER_STATUS_PENDING);
+        member.setMemberRole(MemberRole.MEMBER.getCode());
+        member.setStatus(MemberStatus.PENDING.getCode());
         clubMemberMapper.insert(member);
         log.info("入社申请提交: clubId={}, userId={}", clubId, userId);
     }
@@ -145,31 +144,24 @@ public class ClubServiceImpl implements ClubService {
     @Override
     @Transactional
     public void approveMember(Long clubId, Long operatorId, Long memberId, boolean approved) {
-        // 校验操作人是社长或副社长
-        ClubMember operator = clubMemberMapper.selectOne(
-                new LambdaQueryWrapper<ClubMember>()
-                        .eq(ClubMember::getClubId, clubId)
-                        .eq(ClubMember::getUserId, operatorId)
-                        .eq(ClubMember::getStatus, MEMBER_STATUS_APPROVED));
-        if (operator == null || operator.getMemberRole() < 1) {
+        ClubMember operator = buildApprovedMember(clubId, operatorId);
+        if (operator == null || operator.getMemberRole() < MemberRole.VICE_LEADER.getCode()) {
             throw new BizException(ErrorCode.PERMISSION_DENIED);
         }
 
-        // 查找待审批的申请记录
         ClubMember application = clubMemberMapper.selectOne(
                 new LambdaQueryWrapper<ClubMember>()
                         .eq(ClubMember::getId, memberId)
                         .eq(ClubMember::getClubId, clubId)
-                        .eq(ClubMember::getStatus, MEMBER_STATUS_PENDING));
+                        .eq(ClubMember::getStatus, MemberStatus.PENDING.getCode()));
         if (application == null) {
             throw new BizException(ErrorCode.JOIN_REQUEST_NOT_FOUND);
         }
 
         if (approved) {
-            // 通过：设置 joinTime，更新状态，原子递增 member_count
             clubMemberMapper.update(null, new LambdaUpdateWrapper<ClubMember>()
                     .eq(ClubMember::getId, memberId)
-                    .set(ClubMember::getStatus, MEMBER_STATUS_APPROVED)
+                    .set(ClubMember::getStatus, MemberStatus.APPROVED.getCode())
                     .set(ClubMember::getJoinTime, LocalDateTime.now()));
 
             clubMapper.update(null, new LambdaUpdateWrapper<Club>()
@@ -179,7 +171,7 @@ public class ClubServiceImpl implements ClubService {
         } else {
             clubMemberMapper.update(null, new LambdaUpdateWrapper<ClubMember>()
                     .eq(ClubMember::getId, memberId)
-                    .set(ClubMember::getStatus, MEMBER_STATUS_REJECTED));
+                    .set(ClubMember::getStatus, MemberStatus.REJECTED.getCode()));
             log.info("入社申请拒绝: clubId={}, memberId={}, userId={}", clubId, memberId, application.getUserId());
         }
     }
@@ -187,13 +179,8 @@ public class ClubServiceImpl implements ClubService {
     @Override
     @Transactional
     public Long createAnnouncement(Long clubId, Long publisherId, CreateAnnouncementRequest request) {
-        // 发布者须是社长或副社长（已通过状态）
-        ClubMember publisher = clubMemberMapper.selectOne(
-                new LambdaQueryWrapper<ClubMember>()
-                        .eq(ClubMember::getClubId, clubId)
-                        .eq(ClubMember::getUserId, publisherId)
-                        .eq(ClubMember::getStatus, MEMBER_STATUS_APPROVED));
-        if (publisher == null || publisher.getMemberRole() < 1) {
+        ClubMember publisher = buildApprovedMember(clubId, publisherId);
+        if (publisher == null || publisher.getMemberRole() < MemberRole.VICE_LEADER.getCode()) {
             throw new BizException(ErrorCode.PERMISSION_DENIED);
         }
 
@@ -216,5 +203,193 @@ public class ClubServiceImpl implements ClubService {
                 .orderByDesc(ClubAnnouncement::getIsPinned)
                 .orderByDesc(ClubAnnouncement::getCreateTime);
         return announcementMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
+    }
+
+    @Override
+    public Page<MemberListItemDTO> listMembers(Long clubId, Long operatorId, int pageNum, int pageSize) {
+        ClubMember operator = buildApprovedMember(clubId, operatorId);
+        if (operator == null) {
+            throw new BizException(ErrorCode.NOT_CLUB_MEMBER);
+        }
+
+        Page<ClubMember> memberPage = clubMemberMapper.selectPage(
+                new Page<>(pageNum, pageSize),
+                new LambdaQueryWrapper<ClubMember>()
+                        .eq(ClubMember::getClubId, clubId)
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode())
+                        .orderByDesc(ClubMember::getMemberRole)
+                        .orderByAsc(ClubMember::getJoinTime));
+
+        Page<MemberListItemDTO> resultPage = new Page<>(memberPage.getCurrent(), memberPage.getSize(), memberPage.getTotal());
+        List<MemberListItemDTO> dtoList = memberPage.getRecords().stream().map(m -> {
+            MemberListItemDTO dto = new MemberListItemDTO();
+            dto.setMemberId(m.getId());
+            dto.setUserId(m.getUserId());
+            dto.setMemberRole(m.getMemberRole());
+            dto.setJoinTime(m.getJoinTime());
+            return dto;
+        }).collect(Collectors.toList());
+        resultPage.setRecords(dtoList);
+        return resultPage;
+    }
+
+    @Override
+    @Transactional
+    public void kickMember(Long clubId, Long operatorId, Long memberId) {
+        ClubMember operator = buildApprovedMember(clubId, operatorId);
+        if (operator == null || operator.getMemberRole() < MemberRole.VICE_LEADER.getCode()) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        ClubMember target = clubMemberMapper.selectOne(
+                new LambdaQueryWrapper<ClubMember>()
+                        .eq(ClubMember::getId, memberId)
+                        .eq(ClubMember::getClubId, clubId)
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode()));
+        if (target == null) {
+            throw new BizException(ErrorCode.NOT_CLUB_MEMBER);
+        }
+
+        if (target.getMemberRole() >= MemberRole.LEADER.getCode()) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        if (operator.getMemberRole() == MemberRole.VICE_LEADER.getCode()
+                && target.getMemberRole() == MemberRole.VICE_LEADER.getCode()) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        clubMemberMapper.deleteById(memberId);
+
+        int affectedRows = clubMapper.update(null, new LambdaUpdateWrapper<Club>()
+                .eq(Club::getId, clubId)
+                .gt(Club::getMemberCount, 0)
+                .setSql("member_count = member_count - 1"));
+        if (affectedRows == 0) {
+            log.warn("警告: kickMember 时 member_count 递减失败，当前可能为0: clubId={}, club_member.id={}", clubId, memberId);
+        }
+
+        log.info("踢出成员: clubId={}, operatorId={}, memberId={}, targetUserId={}",
+                clubId, operatorId, memberId, target.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public void updateMemberRole(Long clubId, Long operatorId, Long targetUserId, int newRole) {
+        if (!MemberRole.isUpdatable(newRole)) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "只允许设置为普通成员(0)或副社长(1)");
+        }
+
+        ClubMember operator = buildApprovedMember(clubId, operatorId);
+        if (operator == null || operator.getMemberRole() != MemberRole.LEADER.getCode()) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        if (operatorId.equals(targetUserId)) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        ClubMember target = clubMemberMapper.selectOne(
+                new LambdaQueryWrapper<ClubMember>()
+                        .eq(ClubMember::getClubId, clubId)
+                        .eq(ClubMember::getUserId, targetUserId)
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode()));
+        if (target == null) {
+            throw new BizException(ErrorCode.NOT_CLUB_MEMBER);
+        }
+
+        clubMemberMapper.update(null, new LambdaUpdateWrapper<ClubMember>()
+                .eq(ClubMember::getId, target.getId())
+                .set(ClubMember::getMemberRole, newRole));
+
+        log.info("修改成员角色: clubId={}, operatorId={}, targetUserId={}, newRole={}",
+                clubId, operatorId, targetUserId, newRole);
+    }
+
+    @Override
+    @Transactional
+    public void quitClub(Long clubId, Long userId) {
+        ClubMember member = buildApprovedMember(clubId, userId);
+        if (member == null) {
+            throw new BizException(ErrorCode.NOT_CLUB_MEMBER);
+        }
+
+        if (member.getMemberRole() == MemberRole.LEADER.getCode()) {
+            throw new BizException(ErrorCode.PERMISSION_DENIED);
+        }
+
+        clubMemberMapper.deleteById(member.getId());
+
+        int affectedRows = clubMapper.update(null, new LambdaUpdateWrapper<Club>()
+                .eq(Club::getId, clubId)
+                .gt(Club::getMemberCount, 0)
+                .setSql("member_count = member_count - 1"));
+        if (affectedRows == 0) {
+            log.warn("警告: quitClub 时 member_count 递减失败: clubId={}, memberId={}", clubId, member.getId());
+        }
+
+        log.info("退出社团: clubId={}, userId={}", clubId, userId);
+    }
+
+    @Override
+    public List<ClubMemberDTO> getUserClubs(Long userId) {
+        List<ClubMember> memberList = clubMemberMapper.selectList(
+                new LambdaQueryWrapper<ClubMember>()
+                        .eq(ClubMember::getUserId, userId)
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode()));
+
+        if (memberList.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> clubIds = memberList.stream()
+                .map(ClubMember::getClubId)
+                .collect(Collectors.toList());
+
+        List<Club> clubs = batchQueryClubs(clubIds);
+        if (clubs.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, String> clubNameMap = clubs.stream()
+                .collect(Collectors.toMap(Club::getId, Club::getName));
+
+        return memberList.stream()
+                .filter(m -> clubNameMap.containsKey(m.getClubId()))
+                .map(m -> {
+                    ClubMemberDTO dto = new ClubMemberDTO();
+                    dto.setClubId(m.getClubId());
+                    dto.setClubName(clubNameMap.get(m.getClubId()));
+                    dto.setMemberRole(m.getMemberRole());
+                    return dto;
+                })
+                .collect(Collectors.toList());
+    }
+
+    private ClubMember buildApprovedMember(Long clubId, Long userId) {
+        return clubMemberMapper.selectOne(
+                new LambdaQueryWrapper<ClubMember>()
+                        .eq(ClubMember::getClubId, clubId)
+                        .eq(ClubMember::getUserId, userId)
+                        .eq(ClubMember::getStatus, MemberStatus.APPROVED.getCode()));
+    }
+
+    private List<Club> batchQueryClubs(List<Long> clubIds) {
+        if (clubIds.size() <= CLUB_MEMBER_BATCH_SIZE) {
+            return clubMapper.selectList(
+                    new LambdaQueryWrapper<Club>()
+                            .in(Club::getId, clubIds)
+                            .eq(Club::getStatus, ClubStatus.ACTIVE));
+        }
+
+        List<Club> result = new ArrayList<>();
+        for (int i = 0; i < clubIds.size(); i += CLUB_MEMBER_BATCH_SIZE) {
+            List<Long> batch = clubIds.subList(i, Math.min(i + CLUB_MEMBER_BATCH_SIZE, clubIds.size()));
+            result.addAll(clubMapper.selectList(
+                    new LambdaQueryWrapper<Club>()
+                            .in(Club::getId, batch)
+                            .eq(Club::getStatus, ClubStatus.ACTIVE)));
+        }
+        return result;
     }
 }
