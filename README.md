@@ -33,6 +33,29 @@ make build
 make stop
 ```
 
+### 4. 运行测试
+
+```bash
+make test       # 运行全量单元测试 (67 个用例)
+```
+
+| 命令 | 说明 |
+|------|------|
+| `make test` | 运行全部单元测试，无需启动 Docker（Mock 所有外部依赖） |
+| `mvn test -pl campus-api` | 仅测试 campus-api (Feign 降级验证) |
+| `mvn test -pl campus-user-service` | 仅测试用户服务 |
+| `mvn test -pl campus-club-service` | 仅测试社团服务 |
+
+**测试体系**:
+
+| 层级 | 技术 | 覆盖范围 |
+|------|------|----------|
+| **Service 层** | JUnit 5 + Mockito + @InjectMocks | 注册/登录/Token 刷新/改密、社团 CRUD/成员管理 |
+| **Controller 层** | Standalone MockMvc + GlobalExceptionHandler | 请求/响应映射、参数校验、异常处理 |
+| **API 层** | 纯单元测试 | Feign 降级工厂行为验证 |
+
+**当前状态**: 67 个测试用例，全部分区通过（campus-api: 4 / campus-user-service: 28 / campus-club-service: 35）。
+
 ## 项目结构
 
 ```

@@ -394,6 +394,16 @@ gantt
 | 常量 | `UPPER_SNAKE_CASE` |
 | 返回值 | 统一使用 `Result<T>` 包装，禁止返回裸对象 |
 
+### 测试体系
+
+| 层级 | 技术 | 覆盖 |
+|------|------|------|
+| **Service** | @ExtendWith(MockitoExtension) + @InjectMocks | 核心业务逻辑，全部条件分支 |
+| **Controller** | Standalone MockMvc + GlobalExceptionHandler | 请求/响应映射、参数校验、异常处理 |
+| **API** | 纯单元 | Feign 降级验证 |
+
+运行 `make test` 执行 67 个用例，无需启动 Docker。
+
 ### Nacos 配置命名规范
 
 ```

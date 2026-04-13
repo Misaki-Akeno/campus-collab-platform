@@ -48,6 +48,26 @@ make stop   # 停止本地环境
 | 常量 | `UPPER_SNAKE_CASE` |
 | 服务层 | Interface + Impl 分离 |
 
+## 测试
+
+**框架**: JUnit 5 + Mockito + Spring Test
+**运行**: `make test` 全部通过（67 用例）
+
+```
+campus-api/          # 3 个 FallbackFactory 测试 (4 用例) — 纯单元测试
+campus-user-service/ # Service(18) + Controllers(8+2) = 28 用例
+campus-club-service/ # Service(29) + Controller(6) = 35 用例
+```
+
+| 层级 | 技术 | 注意事项 |
+|------|------|---------|
+| **Service** | @ExtendWith(MockitoExtension) + @InjectMocks | MyBatis-Plus `insert()` / `updateById()` 有单参/Collection 参数歧义，**不要** `verify(mapper).insert(any())`，改用 `@MockitoSettings(Strictness.LENIENT)` |
+| **Controller** | Standalone MockMvc + GlobalExceptionHandler | 不用 @WebMvcTest（与 MyBatis-Plus 有版本冲突），使用 `MockMvcBuilders.standaloneSetup().setControllerAdvice()` |
+
+**集成测试** (待 Docker Hub 可访问时启用):
+> 已准备 Testcontainers 完整方案 (pom.xml 依赖 + TestApplication + TestDataSourceConfig + init.sql)。
+> 环境恢复后可启用 `@SpringBootTest @Testcontainers` 进行真实 MySQL/Redis 集成测试。
+
 ## Git 分支策略
 
 | 分支 | 用途 |
