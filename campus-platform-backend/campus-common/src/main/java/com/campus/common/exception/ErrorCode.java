@@ -41,13 +41,13 @@ public enum ErrorCode {
     FILE_NOT_FOUND(1041, "文件不存在"),
     FILE_TOO_LARGE(1042, "文件过大"),
     UPLOAD_NOT_FOUND(1043, "上传任务不存在"),
+    FILE_UPLOAD_FAIL(1044, "文件上传失败"),
 
     // 秒杀域错误 — 与白皮书码段对齐
     STOCK_EMPTY(5001, "活动名额已满"),
     DUPLICATE_BOOK(5002, "您已报名该活动，请勿重复操作"),
     ACTIVITY_NOT_START(5003, "活动报名未开始"),
-    ACTIVITY_ENDED(5004, "活动报名已结束"),
-    FILE_UPLOAD_FAIL(5005, "文件上传失败");
+    ACTIVITY_ENDED(5004, "活动报名已结束");
 
     private final Integer code;
     private final String message;

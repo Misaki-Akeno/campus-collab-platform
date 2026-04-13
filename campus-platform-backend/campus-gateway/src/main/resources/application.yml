@@ -4,6 +4,12 @@ server:
 spring:
   application:
     name: campus-gateway
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      timeout: 3000ms
   cloud:
     nacos:
       discovery:
@@ -54,6 +60,6 @@ spring:
 
 campus:
   jwt:
-    secret: Y2FtcHVzLXBsYXRmb3JtLXNlY3JldC1rZXktMjAyNi0wNC0xMw==
+    secret: ${CAMPUS_JWT_SECRET}
     access-expire: 7200000    # 2小时（毫秒）
     refresh-expire: 604800000 # 7天（毫秒）

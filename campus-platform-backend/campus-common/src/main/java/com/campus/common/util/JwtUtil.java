@@ -39,7 +39,7 @@ public class JwtUtil {
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
-                .claim("jti", UUID.randomUUID().toString())
+                .id(UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expire))
                 .signWith(buildKey(), Jwts.SIG.HS256)
@@ -75,7 +75,7 @@ public class JwtUtil {
     }
 
     public String getJti(Claims claims) {
-        return claims.get("jti", String.class);
+        return claims.getId();
     }
 
     private SecretKey buildKey() {

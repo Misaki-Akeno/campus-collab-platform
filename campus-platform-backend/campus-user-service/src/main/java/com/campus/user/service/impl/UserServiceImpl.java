@@ -78,8 +78,7 @@ public class UserServiceImpl implements UserService {
 
         // 4. 存储 refreshToken 到 Redis（覆盖旧 token，实现单端登录）
         String redisKey = String.format(RedisKeyConstant.USER_REFRESH_TOKEN, user.getId());
-        long refreshExpireDays = jwtProperties.getRefreshExpire() / 1000 / 60 / 60 / 24;
-        redisTemplate.opsForValue().set(redisKey, refreshToken, refreshExpireDays, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(redisKey, refreshToken, jwtProperties.getRefreshExpire(), TimeUnit.MILLISECONDS);
 
         // 5. 更新最后登录时间（异步不影响响应速度，此处同步简化实现）
         SysUser update = new SysUser();

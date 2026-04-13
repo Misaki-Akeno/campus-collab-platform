@@ -1,5 +1,6 @@
 package com.campus.gateway.filter;
 
+import com.campus.common.constant.RedisKeyConstant;
 import com.campus.common.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -8,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
@@ -24,6 +26,7 @@ import java.util.List;
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
+    private final StringRedisTemplate redisTemplate;
 
     private static final List<String> WHITE_LIST = List.of(
             "/user/api/v1/register",
@@ -58,6 +61,16 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         String token = authHeader.substring(BEARER_PREFIX.length());
         try {
             Claims claims = jwtUtil.parseToken(token);
+
+            // 黑名单校验（注销/强制下线场景）
+            String jti = jwtUtil.getJti(claims);
+            String blacklistKey = String.format(RedisKeyConstant.USER_BLACKLIST, jti);
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(blacklistKey))) {
+                log.warn("Token已被加入黑名单: jti={}, path={}", jti, path);
+                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                return exchange.getResponse().setComplete();
+            }
+
             Long userId = jwtUtil.getUserId(claims);
             Integer role = jwtUtil.getRole(claims);
 

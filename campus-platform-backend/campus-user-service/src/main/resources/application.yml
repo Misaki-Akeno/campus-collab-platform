@@ -39,6 +39,6 @@ mybatis-plus:
 
 campus:
   jwt:
-    secret: Y2FtcHVzLXBsYXRmb3JtLXNlY3JldC1rZXktMjAyNi0wNC0xMw==
+    secret: ${CAMPUS_JWT_SECRET}
     access-expire: 7200000
     refresh-expire: 604800000

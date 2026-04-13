@@ -13,8 +13,8 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "campus.jwt")
 public class JwtProperties {
 
-    /** HMAC-SHA256 签名密钥（Base64编码，长度至少32字节） */
-    private String secret = "Y2FtcHVzLXBsYXRmb3JtLXNlY3JldC1rZXktMjAyNi0wNC0xMw==";
+    /** HMAC-SHA256 签名密钥（Base64编码，长度至少32字节），通过环境变量 CAMPUS_JWT_SECRET 注入 */
+    private String secret;
 
     /** accessToken 有效期（毫秒），默认 2 小时 */
     private long accessExpire = 2 * 60 * 60 * 1000L;
