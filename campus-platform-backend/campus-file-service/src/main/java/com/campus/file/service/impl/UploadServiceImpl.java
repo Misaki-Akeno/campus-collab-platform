@@ -3,6 +3,7 @@ package com.campus.file.service.impl;
 import com.campus.common.constant.RedisKeyConstant;
 import com.campus.common.exception.BizException;
 import com.campus.common.exception.ErrorCode;
+import com.campus.file.constant.UploadStatus;
 import com.campus.file.entity.FileMeta;
 import com.campus.file.mapper.FileMetaMapper;
 import com.campus.file.service.UploadService;
@@ -37,7 +38,7 @@ public class UploadServiceImpl implements UploadService {
 
         FileMeta existing = fileMetaMapper.selectById(fileMd5);
 
-        if (existing != null && existing.getUploadStatus() == 1) {
+        if (existing != null && existing.getUploadStatus() == UploadStatus.COMPLETED) {
             // 秒传：文件已存在且完整
             log.info("文件秒传命中: fileId={}, fileName={}", fileMd5, fileName);
             result.put("type", "instant");
@@ -45,7 +46,7 @@ public class UploadServiceImpl implements UploadService {
             return result;
         }
 
-        if (existing != null && existing.getUploadStatus() == 0) {
+        if (existing != null && existing.getUploadStatus() == UploadStatus.UPLOADING) {
             // 断点续传：查询 Redis 已完成的分片
             String chunkKey = String.format(RedisKeyConstant.FILE_CHUNK, existing.getFileId());
             Map<Object, Object> uploadedChunks = redisTemplate.opsForHash().entries(chunkKey);
@@ -61,7 +62,7 @@ public class UploadServiceImpl implements UploadService {
         fileMeta.setFileName(fileName);
         fileMeta.setFileSize(fileSize);
         fileMeta.setChunkCount(chunkCount);
-        fileMeta.setUploadStatus(0);
+        fileMeta.setUploadStatus(UploadStatus.UPLOADING);
         fileMeta.setUploaderId(uploaderId);
         // fileUrl / fileType 合并后填充
         fileMeta.setFileUrl("");
@@ -92,7 +93,7 @@ public class UploadServiceImpl implements UploadService {
         // 暂时更新状态为已完成
         FileMeta update = new FileMeta();
         update.setFileId(fileMd5);
-        update.setUploadStatus(1);
+        update.setUploadStatus(UploadStatus.COMPLETED);
         fileMetaMapper.updateById(update);
 
         // 清理 Redis 分片记录

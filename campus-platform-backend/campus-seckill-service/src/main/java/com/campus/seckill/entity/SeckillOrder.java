@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
 public class SeckillOrder extends BaseEntity {
     private Long userId;
     private Long activityId;
-    /** 0-排队中 1-成功 2-已取消 */
+    /** 0-排队中(PROCESSING) 1-成功(SUCCESS) 2-失败/已取消(FAILED) */
     private Integer status;
     private String cancelReason;
 }

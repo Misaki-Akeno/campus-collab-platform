@@ -47,7 +47,8 @@ public enum ErrorCode {
     STOCK_EMPTY(5001, "活动名额已满"),
     DUPLICATE_BOOK(5002, "您已报名该活动，请勿重复操作"),
     ACTIVITY_NOT_START(5003, "活动报名未开始"),
-    ACTIVITY_ENDED(5004, "活动报名已结束");
+    ACTIVITY_ENDED(5004, "活动报名已结束"),
+    ACTIVITY_CANCELLED(5005, "活动已取消");
 
     private final Integer code;
     private final String message;

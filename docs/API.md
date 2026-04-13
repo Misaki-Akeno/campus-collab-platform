@@ -52,11 +52,14 @@ Authorization: Bearer <accessToken>
 | `404` | 资源不存在 | 404 |
 | `429` | 请求频率超限 | 429 |
 | `500` | 系统内部异常 | 500 |
-| `5001` | 库存不足（活动已满） | 200 |
+| `5001` | 活动名额已满（库存不足） | 200 |
 | `5002` | 重复报名 | 200 |
 | `5003` | 活动未开始 | 200 |
 | `5004` | 活动已结束 | 200 |
-| `5005` | 文件上传失败 | 200 |
+| `5005` | 活动已取消 | 200 |
+| `1041-1044` | 文件业务错误（不存在/过大/上传失败） | 200 |
+| `1021-1024` | IM 业务错误 | 200 |
+| `1011-1015` | 社团业务错误 | 200 |
 
 ### 1.5 分页约定
 
@@ -209,24 +212,23 @@ Authorization: Bearer <accessToken>
 
 **`POST /club/api/v1/clubs`** — 需鉴权
 
-**Request Body：**
-```json
-{
-  "name": "AI 技术研究社",
-  "description": "探索人工智能前沿技术，定期举办技术分享会。",
-  "category": "学术",
-  "logoFileId": "a1b2c3d4..."
-}
-```
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `name` | String | 是 | 社团名称 |
+| `description` | String | 否 | 社团简介 |
+| `category` | String | 否 | 分类（如"学术""文艺""体育"） |
+
+> 注：Phase 2 将改为 Request Body JSON 传参，以支持 `logoFileId` 等更多字段。
 
 **Response：**
 ```json
 {
   "code": 200,
-  "msg": "社团创建申请已提交，等待管理员审核",
+  "msg": "社团创建成功，待审核",
   "data": {
-    "clubId": "200001",
-    "status": 0
+    "clubId": "200001"
   }
 }
 ```
@@ -237,7 +239,9 @@ Authorization: Bearer <accessToken>
 
 **`GET /club/api/v1/clubs`** — 无需鉴权
 
-**Query：** `?keyword=编程&category=学术&page=1&size=20`
+**Query：** `?category=学术&page=1&size=20`
+
+> 注：Phase 2 将支持 `keyword` 模糊搜索（按社团名称）。
 
 **Response：**
 ```json
@@ -249,18 +253,23 @@ Authorization: Bearer <accessToken>
     "current": 1,
     "records": [
       {
-        "clubId": "100001",
+        "id": "100001",
         "name": "编程社",
         "description": "热爱代码的同学聚集地",
-        "category": "学术",
         "logoUrl": "https://oss.example.com/club/logo1.png",
+        "leaderId": "1780001234567890",
+        "category": "学术",
+        "status": 1,
         "memberCount": 156,
-        "leaderName": "李四"
+        "createTime": "2026-03-01T10:00:00",
+        "updateTime": "2026-04-01T12:00:00"
       }
     ]
   }
 }
 ```
+
+> 注：Phase 2 将使用 DTO 层封装，隐藏 `id`、`status` 等内部字段，补充 `leaderName`（通过 UserFeignClient 跨服务查询）。
 
 ---
 
@@ -268,18 +277,14 @@ Authorization: Bearer <accessToken>
 
 **`POST /club/api/v1/clubs/{clubId}/join`** — 需鉴权
 
-**Request Body：**
-```json
-{
-  "reason": "对编程非常感兴趣，想学习更多技术"
-}
-```
+**Request Body：** 无
+
+> 注：Phase 2 将支持 `reason` 字段，通过 Request Body 传入入社团申请说明。
 
 **Response：**
 ```json
 {
-  "code": 200,
-  "msg": "申请已提交，等待社长审批"
+  "code": 200
 }
 ```
 
@@ -315,7 +320,7 @@ Authorization: Bearer <accessToken>
 
 ### C1. 秒杀报名 ⚡ 核心高频接口
 
-**`POST /seckill/api/v1/activities/{id}/book`** — 需鉴权
+**`POST /seckill/api/v1/activities/{activityId}/book`** — 需鉴权
 
 **处理流程：**
 ```
@@ -334,13 +339,14 @@ Client → Gateway(Sentinel限流) → 防刷拦截 → Redis Lua(原子扣减) 
 ```json
 {
   "code": 200,
+  "msg": "报名排队中，请轮询 /api/v1/orders/{orderId} 查看结果",
   "data": {
-    "orderId": "987654321098765432",
-    "status": "PROCESSING",
-    "message": "报名请求已提交，请稍后查询结果"
+    "orderId": "987654321098765432"
   }
 }
 ```
+
+> 报名后内部流程：预创建 PROCESSING 订单 → Redis Lua 原子扣减 → 扣减成功发 Kafka 异步更新为 SUCCESS；若 Lua 失败（重复报名/库存不足/活动未预热），则回滚预创建订单并返回对应错误码。客户端拿到 `orderId` 后可通过 `GET /api/v1/orders/{orderId}` 轮询最终状态。
 
 **Response（库存不足）：**
 ```json
@@ -363,14 +369,18 @@ Client → Gateway(Sentinel限流) → 防刷拦截 → Redis Lua(原子扣减) 
 {
   "code": 200,
   "data": {
-    "orderId": "987654321098765432",
+    "id": "987654321098765432",
+    "userId": 1780001234567890,
     "activityId": "500001",
-    "activityTitle": "2026校园音乐节",
-    "status": "SUCCESS",
-    "bookTime": "2026-04-12T15:00:01"
+    "status": 0,
+    "cancelReason": null,
+    "createTime": "2026-04-12T15:00:01",
+    "updateTime": "2026-04-12T15:00:01"
   }
 }
 ```
+
+> 权限控制：若订单不属于当前登录用户（userId 不匹配），返回 `403 FORBIDDEN`。
 
 **订单状态机：**
 
@@ -398,12 +408,14 @@ stateDiagram-v2
   "code": 200,
   "data": {
     "total": 5,
+    "pages": 1,
+    "current": 1,
     "records": [
       {
-        "activityId": "500001",
+        "id": "500001",
         "clubId": "100001",
-        "clubName": "编程社",
         "title": "2026校园音乐节",
+        "description": null,
         "coverUrl": "https://oss.example.com/activity/music.png",
         "location": "大礼堂",
         "activityTime": "2026-04-20T19:00:00",
@@ -411,12 +423,16 @@ stateDiagram-v2
         "availableStock": 123,
         "startTime": "2026-04-15T12:00:00",
         "endTime": "2026-04-18T23:59:59",
-        "status": 1
+        "status": 1,
+        "createTime": "2026-04-10T10:00:00",
+        "updateTime": "2026-04-10T10:00:00"
       }
     ]
   }
 }
 ```
+
+> 注：Phase 2 将使用 DTO 层封装，隐藏 `id`、`status` 等内部字段，补充 `clubName`（通过 ClubFeignClient 跨服务查询）。
 
 ---
 
@@ -426,28 +442,25 @@ stateDiagram-v2
 
 **`POST /file/api/v1/upload/init`** — 需鉴权
 
-**Request Body：**
-```json
-{
-  "fileName": "社团宣传片.mp4",
-  "fileSize": 104857600,
-  "md5": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "chunkSize": 5242880
-}
-```
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `fileName` | String | 是 | 原始文件名 |
+| `fileSize` | Long | 是 | 文件大小（字节） |
+| `fileMd5` | String | 是 | 文件 MD5 哈希（32 位） |
+| `chunkCount` | Int | 否 | 分片总数，默认 1 |
+
+> 注：Phase 2 将统一改为 Request Body JSON 传参，当前使用 Query 参数。
 
 **Response（需要上传）：**
 ```json
 {
   "code": 200,
   "data": {
-    "isFastUpload": false,
-    "uploadId": "UP-556677889900",
-    "chunkCount": 20,
-    "chunkUrls": [
-      { "partNumber": 1, "uploadUrl": "https://oss.example.com/upload/part1?sign=xxx" },
-      { "partNumber": 2, "uploadUrl": "https://oss.example.com/upload/part2?sign=xxx" }
-    ]
+    "type": "new",
+    "uploadId": "TODO_MINIO_UPLOAD_ID",
+    "presignedUrls": []
   }
 }
 ```
@@ -457,8 +470,19 @@ stateDiagram-v2
 {
   "code": 200,
   "data": {
-    "isFastUpload": true,
+    "type": "instant",
     "fileUrl": "https://oss.example.com/files/a1b2c3d4.mp4"
+  }
+}
+```
+
+**Response（断点续传）：**
+```json
+{
+  "code": 200,
+  "data": {
+    "type": "resume",
+    "uploadedParts": ["1", "2", "3"]
   }
 }
 ```
@@ -475,7 +499,7 @@ sequenceDiagram
     C->>F: 2. POST /upload/init
     F->>F: 3. 查 file_meta 表
     alt 文件已存在（秒传）
-        F-->>C: 返回 {isFastUpload: true, fileUrl}
+        F-->>C: 返回 {type: "instant", fileUrl}
     else 文件不存在
         F->>O: 4. 创建 Multipart Upload
         F->>R: 5. 记录分片进度
@@ -506,24 +530,20 @@ sequenceDiagram
 
 **`POST /file/api/v1/upload/chunk/complete`** — 需鉴权
 
-**Request Body：**
-```json
-{
-  "uploadId": "UP-556677889900",
-  "partNumber": 3,
-  "etag": "\"d41d8cd98f00b204e9800998ecf8427e\""
-}
-```
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `uploadId` | String | 是 | 分片上传 ID |
+| `partNumber` | Int | 是 | 分片序号（从 1 开始） |
+| `etag` | String | 是 | 分片 ETag |
+
+> 注：Phase 2 将统一改为 Request Body JSON 传参。
 
 **Response：**
 ```json
 {
-  "code": 200,
-  "data": {
-    "completedParts": 3,
-    "totalParts": 20,
-    "progress": 15
-  }
+  "code": 200
 }
 ```
 
@@ -533,21 +553,21 @@ sequenceDiagram
 
 **`POST /file/api/v1/upload/merge`** — 需鉴权
 
-**Request Body：**
-```json
-{
-  "uploadId": "UP-556677889900"
-}
-```
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `fileMd5` | String | 是 | 文件 MD5（即 fileId，用于定位 file_meta 记录） |
+| `uploadId` | String | 是 | 分片上传 ID |
+
+> 注：Phase 2 将统一改为 Request Body JSON 传参；届时 `fileMd5` 由服务端从 uploadId 关联的 Redis 记录中自动获取，客户端只需传 `uploadId`。
 
 **Response：**
 ```json
 {
   "code": 200,
   "data": {
-    "fileId": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-    "fileUrl": "https://oss.example.com/files/a1b2c3d4.mp4",
-    "fileSize": 104857600
+    "fileUrl": "https://oss.example.com/files/a1b2c3d4.mp4"
   }
 }
 ```
@@ -564,34 +584,33 @@ sequenceDiagram
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `conversationId` | String | 是 | 会话 ID |
-| `lastAckMsgId` | String | 否 | 最后已确认的消息 ID（首次传空） |
-| `limit` | Int | 否 | 每次拉取条数，默认 50，最大 200 |
-| `direction` | String | 否 | `FORWARD`（默认，新消息）/ `BACKWARD`（历史消息） |
+| `conversationId` | String | 否 | 指定会话 ID；不传则拉取所有会话的近期消息（全局 LIMIT 500） |
+| `lastMsgId` | String | 否 | 上次已收到的最新消息 ID，不传则从最早开始 |
+
+> Phase 3 将补充 `limit`（分页大小）、`direction`（拉取方向）参数，并换为 Kafka offset 方案。
 
 **Response：**
 ```json
 {
   "code": 200,
-  "data": {
-    "hasMore": true,
-    "messages": [
-      {
-        "msgId": "S-888889",
-        "conversationId": "CONV_G_100001",
-        "senderId": 1780001234567890,
-        "senderName": "张三",
-        "senderAvatar": "https://oss.example.com/avatar/xxx.png",
-        "msgType": 1,
-        "content": "{\"text\": \"明天几点集合？\"}",
-        "replyMsgId": null,
-        "isRecalled": false,
-        "createTime": "2026-04-12T14:30:00"
-      }
-    ]
-  }
+  "data": [
+    {
+      "msgId": "S-888889",
+      "conversationId": "CONV_G_100001",
+      "senderId": 1780001234567890,
+      "msgType": 1,
+      "content": "{\"text\": \"明天几点集合？\"}",
+      "atUserIds": null,
+      "replyMsgId": null,
+      "isRecalled": 0,
+      "createTime": "2026-04-12T14:30:00",
+      "updateTime": "2026-04-12T14:30:00"
+    }
+  ]
 }
 ```
+
+> 注：当前返回为 Entity 列表（骨架阶段）。Phase 3 将封装为 DTO，增加 `senderName`、`senderAvatar` 等冗余字段，返回结构为 `{ hasMore, messages }`。
 
 ---
 
@@ -609,39 +628,26 @@ sequenceDiagram
       "type": 2,
       "name": "编程社群聊",
       "avatarUrl": "https://oss.example.com/club/logo1.png",
-      "lastMessage": {
-        "msgId": "S-888890",
-        "senderName": "李四",
-        "content": "[图片]",
-        "createTime": "2026-04-12T14:30:15"
-      },
-      "unreadCount": 12,
-      "muted": false,
-      "pinned": true
+      "ownerId": "1780001234567890",
+      "maxMembers": 500,
+      "createTime": "2026-04-01T10:00:00",
+      "updateTime": "2026-04-12T14:30:00"
     },
     {
       "conversationId": "CONV_P_1001_1002",
       "type": 1,
       "name": null,
-      "peerUser": {
-        "userId": "1002",
-        "nickname": "王五",
-        "avatarUrl": "https://oss.example.com/avatar/zzz.png",
-        "online": true
-      },
-      "lastMessage": {
-        "msgId": "S-777777",
-        "senderName": "王五",
-        "content": "收到，明天见！",
-        "createTime": "2026-04-12T10:00:00"
-      },
-      "unreadCount": 0,
-      "muted": false,
-      "pinned": false
+      "avatarUrl": null,
+      "ownerId": null,
+      "maxMembers": null,
+      "createTime": "2026-04-05T08:00:00",
+      "updateTime": "2026-04-12T10:00:00"
     }
   ]
 }
 ```
+
+> 注：Phase 3 WebSocket 实现后将补充 `lastMessage`、`unreadCount`、`muted`、`peerUser` 等字段，当前仅返回会话基础信息。
 
 ---
 
@@ -781,7 +787,8 @@ sequenceDiagram
 | `200` | 成功 | 全局 |
 | `400-499` | 客户端错误 | 全局 |
 | `500` | 系统内部错误 | 全局 |
+| `1001-1010` | 用户业务错误 | user-service |
+| `1011-1020` | 社团业务错误 | club-service |
+| `1021-1030` | IM 业务错误 | im-service |
+| `1041-1050` | 文件业务错误 | file-service |
 | `5001-5010` | 秒杀业务错误 | seckill-service |
-| `5011-5020` | 文件业务错误 | file-service |
-| `5021-5030` | IM 业务错误 | im-service |
-| `5031-5040` | 社团业务错误 | club-service |

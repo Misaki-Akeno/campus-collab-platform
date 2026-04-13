@@ -60,6 +60,8 @@ public class ImServiceImpl implements ImService {
         }
 
         // 全量拉取：用 IN 一次性查出所有会话的近期消息，避免 N+1
+        // 注：全局 LIMIT 500 不做会话间配额拆分，热门会话可能独占限额，
+        //     Phase 3 换 Kafka offset 方案解决此问题
         List<ImConversation> conversations = listConversations(userId);
         if (conversations.isEmpty()) {
             return List.of();

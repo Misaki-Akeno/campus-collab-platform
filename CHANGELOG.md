@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased] — 2026-04-13 代码审查 Round 2 修复
+
+### 修复（Critical）
+
+- **`campus-seckill-service` `SeckillServiceImpl.book()`**：补充活动状态校验（`status != 1` 时拦截已取消活动）
+
+### 修复（Breaking Change 撤销）
+
+- **`campus-seckill-service` `book()` 返回值**：从临时 token（`activityId:userId`）改回真实 `orderId`（雪花预生成），客户端可直接轮询 `/api/v1/orders/{orderId}`，避免前端对接断链
+- **`campus-seckill-service` `SeckillServiceImpl.book()`**：预创建 PROCESSING 状态订单 → Lua 扣减 → Kafka 异步更新成功/失败回滚，订单全生命周期可追溯
+
+### 修复（Important）
+
+- **`campus-file-service` `UploadServiceImpl`**：`uploadStatus` 魔法数字消除，新增 `UploadStatus` 常量类（UPLOADING=0 / COMPLETED=1），与 `ClubStatus` 保持统一风格
+- **`campus-seckill-service` `SeckillOrder`**：status 注释从 "0-排队中 1-成功 2-已取消" 修正为 "0-排队中 1-成功 2-失败/已取消"，语义对齐
+- **`campus-im-service` `ImServiceImpl.syncMessages()`**：全量 LIMIT 500 注释补充说明会话配额不均等已知限制（Phase 3 Kafka offset 解决）
+- **`campus-club-service` `Club`**：status 注释补充 `3-审核拒绝`，与 DDL 对齐
+
+### 新增
+
+- `ACTIVITY_CANCELLED(5005)` 错误码
+- `UploadStatus` 常量类
+
+---
+
 ## [Unreleased] — 2026-04-13 代码审查意见修复
 
 ### 修复（Critical）

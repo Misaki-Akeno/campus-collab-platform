@@ -14,7 +14,7 @@ public class Club extends BaseEntity {
     private String logoUrl;
     private Long leaderId;
     private String category;
-    /** 0-待审核 1-正常 2-已解散 */
+    /** 0-待审核 1-正常 2-已解散 3-审核拒绝 */
     private Integer status;
     private Integer memberCount;
 }

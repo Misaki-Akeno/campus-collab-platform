@@ -36,8 +36,8 @@ public class SeckillController {
     public Result<Map<String, Object>> book(
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long activityId) {
-        String token = seckillService.book(activityId, userId);
-        return Result.ok("报名排队中，请稍候查询结果", Map.of("token", token));
+        String orderId = seckillService.book(activityId, userId);
+        return Result.ok("报名排队中，请轮询 /api/v1/orders/" + orderId + " 查看结果", Map.of("orderId", orderId));
     }
 
     /** GET /api/v1/orders/{orderId} — 查询订单结果（需登录，校验归属） */

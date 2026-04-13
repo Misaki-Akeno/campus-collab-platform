@@ -20,6 +20,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scripting.support.ResourceScriptSource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -64,19 +65,27 @@ public class SeckillServiceImpl implements SeckillService {
     /**
      * 秒杀报名核心流程（高并发）：
      * <ol>
-     *   <li>时间窗口前置校验（DB 读，可加缓存优化）</li>
+     *   <li>活动状态 + 时间窗口前置校验</li>
+     *   <li>预创建状态 = PROCESSING(0) 的订单，获取 orderId</li>
      *   <li>Redis Lua 原子扣减（防重 + 库存，单 round-trip）</li>
-     *   <li>Lua 成功后发 Kafka，Consumer 异步落库</li>
+     *   <li>Lua 成功后发 Kafka，Consumer 异步更新订单为 SUCCESS</li>
+     *   <li>Lua 失败回滚：删除预创建订单，抛业务异常</li>
      * </ol>
-     * DB 订单由 Kafka Consumer 创建，避免在 Lua 失败前产生幽灵订单。
+     * 客户端拿到 orderId 后可通过 /orders/{orderId} 轮询最终状态。
      *
-     * @return 客户端轮询用的临时 token（格式：activityId:userId，Consumer 落库后可换取真实 orderId）
+     * @return 订单 orderId，客户端可轮询 /api/v1/orders/{orderId}
      */
     @Override
+    @Transactional
     public String book(Long activityId, Long userId) {
         SeckillActivity activity = activityMapper.selectById(activityId);
         if (activity == null) {
             throw new BizException(ErrorCode.NOT_FOUND, "活动不存在");
+        }
+
+        // 活动状态校验
+        if (activity.getStatus() != 1) {
+            throw new BizException(ErrorCode.ACTIVITY_CANCELLED);
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -86,6 +95,14 @@ public class SeckillServiceImpl implements SeckillService {
         if (now.isAfter(activity.getEndTime())) {
             throw new BizException(ErrorCode.ACTIVITY_ENDED);
         }
+
+        // 预创建订单（status=0 排队中），客户端拿到 orderId 即可轮询
+        SeckillOrder order = new SeckillOrder();
+        order.setUserId(userId);
+        order.setActivityId(activityId);
+        order.setStatus(0); // PROCESSING
+        orderMapper.insert(order);
+        Long orderId = order.getId();
 
         String stockKey  = String.format(RedisKeyConstant.SECKILL_STOCK,  activityId);
         String bookedKey = String.format(RedisKeyConstant.SECKILL_BOOKED, activityId);
@@ -97,27 +114,29 @@ public class SeckillServiceImpl implements SeckillService {
                 String.valueOf(userId));
 
         if (result == null || result == -3L) {
-            // 活动库存未预热，降级为 DB 查询
-            log.warn("秒杀库存未预热: activityId={}", activityId);
+            // 活动库存未预热，回滚订单
+            log.warn("秒杀库存未预热: activityId={}, orderId={}, 已回滚订单", activityId, orderId);
+            orderMapper.deleteById(orderId);
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
         if (result == -2L) {
+            orderMapper.deleteById(orderId);
             throw new BizException(ErrorCode.DUPLICATE_BOOK);
         }
         if (result == -1L) {
+            orderMapper.deleteById(orderId);
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
 
-        // Lua 扣减成功，发 Kafka 异步落库
+        // Lua 扣减成功，发 Kafka 异步更新订单为 SUCCESS
         String payload = String.format(
-                "{\"userId\":%d,\"activityId\":%d,\"remainStock\":%d}",
-                userId, activityId, result);
+                "{\"orderId\":%d,\"userId\":%d,\"activityId\":%d,\"remainStock\":%d}",
+                orderId, userId, activityId, result);
         kafkaTemplate.send(KafkaTopicConstant.TOPIC_SECKILL_ORDER,
                 String.valueOf(activityId), payload);
 
-        log.info("秒杀报名成功入队: userId={}, activityId={}, remainStock={}", userId, activityId, result);
-        // 返回客户端轮询 token，真实 orderId 由 Kafka Consumer 落库后写入 Redis 供查询
-        return activityId + ":" + userId;
+        log.info("秒杀报名成功入队: orderId={}, userId={}, activityId={}, remainStock={}", orderId, userId, activityId, result);
+        return String.valueOf(orderId);
     }
 
     @Override

@@ -15,10 +15,10 @@ public interface SeckillService {
     /**
      * 秒杀报名（核心高并发接口）。
      * <p>
-     * 内部通过 Redis Lua 原子扣减，成功后发 Kafka 异步落库。
-     * DB 订单由 Consumer 创建，此方法不直接写 DB。
+     * 内部预创建 PROCESSING 状态订单 → Redis Lua 原子扣减 →
+     * Kafka 异步更新订单为 SUCCESS。Lua 失败则回滚删除订单。
      * </p>
-     * @return 轮询 token（格式: activityId:userId），Consumer 落库后可通过 /orders 接口查询真实 orderId
+     * @return orderId，客户端可轮询 /api/v1/orders/{orderId}
      */
     String book(Long activityId, Long userId);
 

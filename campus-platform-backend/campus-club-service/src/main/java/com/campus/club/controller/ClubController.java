@@ -64,6 +64,6 @@ public class ClubController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long clubId) {
         clubService.joinClub(clubId, userId);
-        return Result.ok("加入成功");
+        return Result.ok();
     }
 }
