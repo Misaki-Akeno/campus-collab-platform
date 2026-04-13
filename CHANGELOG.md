@@ -1,5 +1,52 @@
 # Changelog
 
+## [Unreleased] — 2026-04-13 代码审查意见修复
+
+### 修复（Critical）
+
+- **`campus-api` `CampusApiAutoConfiguration`**：`@Configuration` 改为 `@AutoConfiguration`，符合 Spring Boot 3 SPI 的 ordering/conditional 语义
+- **`campus-club-service` `ClubServiceImpl.approveClub()`**：拒绝状态从 `2`（已解散）修正为 `3`（审核拒绝），新增 `ClubStatus` 常量类消除魔法数字；`docs/sql/V1.0__init.sql` club.status 注释同步补充 `3-审核拒绝`
+- **`campus-gateway` `GatewayExceptionHandler`**：`handle()` 入口增加 `isCommitted()` 检查，防止响应已提交时写入 body 抛 `IllegalStateException`
+- **`campus-gateway` `JwtAuthFilter`**：移除 `/seckill/api/v1/activities/**` 通配符白名单，改为精确列举 `/activities` 和 `/activities/{id}` — 修复 POST `/book` 可绕过鉴权的安全漏洞
+
+### 修复（Important）
+
+- **`campus-common` `SnowflakeIdUtil`**：移除 `@Component`（类仅含静态方法，注入无意义），添加私有构造函数强制静态调用
+- **`campus-club-service` `ClubServiceImpl.joinClub()`**：`memberCount + 1` 改为 `setSql("member_count = member_count + 1")` 原子 SQL 递增，消除并发丢失更新
+- **`campus-im-service` `ImServiceImpl.syncMessages()`**：全量拉取路径消除 N+1，改为单次 `IN (convId1, convId2, ...)` 批量查询
+- **`campus-seckill-service` `SeckillServiceImpl.book()`**：重构为正确的高并发流程 — Redis Lua 原子扣减 → Kafka 异步落库，移除 Lua 前创建 DB 订单的错误逻辑；新增 `lua/seckill_deduct.lua` 脚本（防重 + 库存扣减 + SADD 原子三步）
+- **`campus-file-service` `FileMeta`**：`createTime` / `updateTime` 补 `@TableField(fill = FieldFill.INSERT/INSERT_UPDATE)` 注解，MetaObjectHandler 现在会自动填充
+- **`campus-im-service` `ImConversation` / `ImMessage`**：同上，补 `@TableField` 注解及 `@TableLogic` 逻辑删除
+- **`campus-club-service` `ClubController.approveClub()`**：权限不足由 `return Result.fail()` 改为 `throw new BizException(FORBIDDEN)`，统一由 `GlobalExceptionHandler` 处理
+- **`campus-seckill-service` `SeckillController.getOrder()`**：补充订单归属校验（userId 不匹配返回 403），防止越权查询他人订单
+
+---
+
+## [Unreleased] — 2026-04-13 脚手架问题修复 + 四服务骨架补全
+
+### 修复
+
+- **`campus-gateway` `JwtAuthFilter`**：白名单从精确字符串匹配改为 AntPath 模式，公开集合接口加 `/**` 通配，避免带查询参数时鉴权失效
+- **`campus-club-service` `pom.xml`**：移除不应引入的 `spring-boot-starter-security`，替换为 `spring-security-crypto`（BCrypt only）+ `spring-boot-starter-validation`
+- **各业务服务 `application.yml`**（user/club/seckill/file/im）：MyBatis-Plus `global-config.db-config` 补充 `id-type: assign_id`，与 `BaseEntity @TableId(type = IdType.ASSIGN_ID)` 显式对齐
+- **`campus-common` `SnowflakeIdUtil`**：添加 `@Component` 注解，使其可作为 Spring Bean 注入（静态方法保留，供无 Spring 上下文场景使用）
+
+### 新增
+
+- **`campus-gateway` `GatewayExceptionHandler`**：WebFlux 栈全局异常处理器（`@Order(-1)`），统一返回 JSON 格式错误响应，覆盖 Spring 默认 Whitelabel 页面
+- **`campus-api` `CampusApiAutoConfiguration`**：通过 Spring Boot SPI（`AutoConfiguration.imports`）自动注册 `@EnableFeignClients`，消费方引入依赖后无需手动配置扫描路径
+- **`campus-club-service`**：补全 `Club` / `ClubMember` / `ClubAnnouncement` 实体，三个 Mapper，`ClubService`（Interface + Impl），`ClubController`（列表/详情/创建/审核/加入）
+- **`campus-seckill-service`**：补全 `SeckillActivity` / `SeckillOrder` 实体，两个 Mapper，`SeckillService`（Interface + Impl，含 Redis 防重 + Kafka 异步下单骨架），`SeckillController`
+- **`campus-file-service`**：补全 `FileMeta` 实体，`FileMetaMapper`，`UploadService`（Interface + Impl，含秒传/断点续传判断逻辑，MinIO 预签名 URL 为 TODO），`UploadController`
+- **`campus-im-service`**：补全 `ImConversation` / `ImMessage` / `ImConversationMember` 实体，三个 Mapper，`ImService`（Interface + Impl，会话列表 + 离线消息同步），`ImController`
+
+### 说明
+
+- `UploadServiceImpl` MinIO 实际调用（OssService）留有 `TODO` 注释，Phase 2 补充
+- IM WebSocket（`WsServer` 等）Phase 3 实现，当前仅 REST 骨架
+
+---
+
 ## [Unreleased] — 2026-04-13 文档体系拆分重构
 
 ### 新增

@@ -28,12 +28,24 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private final JwtUtil jwtUtil;
     private final StringRedisTemplate redisTemplate;
 
+    /**
+     * 白名单：仅对路径精确匹配（不含查询参数）。
+     * <p>
+     * - 集合列表接口加 /** 支持子路径（如 /clubs/{id}），但须限定到公开的 GET 场景；
+     * - POST /seckill/api/v1/activities/{id}/book 是核心报名接口，必须鉴权，不放入白名单；
+     * - /club/api/v1/clubs 及 /clubs/{id} 是公开浏览，放行。
+     * </p>
+     */
     private static final List<String> WHITE_LIST = List.of(
             "/user/api/v1/register",
             "/user/api/v1/login",
             "/user/api/v1/token/refresh",
+            // 秒杀：仅活动列表和详情公开，POST /book 需鉴权，不使用通配
             "/seckill/api/v1/activities",
-            "/club/api/v1/clubs"
+            "/seckill/api/v1/activities/{id}",
+            // 社团：列表和详情公开
+            "/club/api/v1/clubs",
+            "/club/api/v1/clubs/{id}"
     );
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
@@ -43,6 +55,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
+        // 仅取 path，不含查询参数，避免 ?page=1 干扰匹配
         String path = request.getURI().getPath();
 
         for (String pattern : WHITE_LIST) {

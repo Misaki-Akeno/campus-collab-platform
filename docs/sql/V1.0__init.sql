@@ -34,7 +34,7 @@ CREATE TABLE `club` (
   `logo_url`    varchar(512) DEFAULT NULL                          COMMENT '社团Logo',
   `leader_id`   bigint       NOT NULL                              COMMENT '社长用户ID',
   `category`    varchar(32)  DEFAULT NULL                          COMMENT '分类',
-  `status`      tinyint      NOT NULL DEFAULT '0'                  COMMENT '审核状态: 0-待审核 1-正常 2-已解散',
+  `status`      tinyint      NOT NULL DEFAULT '0'                  COMMENT '审核状态: 0-待审核 1-正常 2-已解散 3-审核拒绝',
   `member_count`int          NOT NULL DEFAULT '1'                  COMMENT '成员数冗余',
   `create_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
