@@ -30,6 +30,8 @@ public enum ErrorCode {
     ALREADY_MEMBER(1013, "已经是社团成员"),
     NOT_CLUB_MEMBER(1014, "不是社团成员"),
     PERMISSION_DENIED(1015, "社团权限不足"),
+    JOIN_REQUEST_EXISTS(1016, "已提交入社申请，请等待审批"),
+    JOIN_REQUEST_NOT_FOUND(1017, "入社申请不存在"),
 
     // IM域错误 1021-1030
     CONVERSATION_NOT_FOUND(1021, "会话不存在"),

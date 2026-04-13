@@ -8,9 +8,9 @@ spring:
   application:
     name: campus-file-service
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/campus_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: root
-    password: root123456
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:campus_platform}?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       minimum-idle: 5
@@ -18,19 +18,19 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
   data:
     redis:
-      host: 127.0.0.1
-      port: 6379
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
       database: 4
 
 # MinIO 配置（通过自定义 MinioProperties 读取）
 minio:
-  endpoint: http://127.0.0.1:9002
-  access-key: minioadmin
-  secret-key: minioadmin123
-  bucket-name: campus-files
+  endpoint: ${MINIO_ENDPOINT:http://127.0.0.1:9002}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY}
+  bucket-name: ${MINIO_BUCKET:campus-files}
 
 mybatis-plus:
   configuration:

@@ -47,10 +47,12 @@ public class SeckillServiceImpl implements SeckillService {
     }
 
     @Override
-    public Page<SeckillActivity> listActivities(int pageNum, int pageSize) {
-        return activityMapper.selectPage(new Page<>(pageNum, pageSize),
-                new LambdaQueryWrapper<SeckillActivity>()
-                        .orderByDesc(SeckillActivity::getStartTime));
+    public Page<SeckillActivity> listActivities(int pageNum, int pageSize, Long clubId, Integer status) {
+        LambdaQueryWrapper<SeckillActivity> wrapper = new LambdaQueryWrapper<SeckillActivity>()
+                .eq(clubId != null, SeckillActivity::getClubId, clubId)
+                .eq(status != null, SeckillActivity::getStatus, status)
+                .orderByDesc(SeckillActivity::getStartTime);
+        return activityMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
     }
 
     @Override
@@ -66,14 +68,12 @@ public class SeckillServiceImpl implements SeckillService {
      * 秒杀报名核心流程（高并发）：
      * <ol>
      *   <li>活动状态 + 时间窗口前置校验</li>
-     *   <li>预创建状态 = PROCESSING(0) 的订单，获取 orderId</li>
-     *   <li>Redis Lua 原子扣减（防重 + 库存，单 round-trip）</li>
-     *   <li>Lua 成功后发 Kafka，Consumer 异步更新订单为 SUCCESS</li>
-     *   <li>Lua 失败回滚：删除预创建订单，抛业务异常</li>
+     *   <li>Redis Lua 原子扣减（防重 + 库存，单 round-trip）——先 Lua 后建单，无需回滚</li>
+     *   <li>Lua 成功后 INSERT 订单（status=SUCCESS），再发 Kafka 做异步对账/补偿</li>
      * </ol>
-     * 客户端拿到 orderId 后可通过 /orders/{orderId} 轮询最终状态。
+     * 客户端收到 orderId 即代表报名成功。
      *
-     * @return 订单 orderId，客户端可轮询 /api/v1/orders/{orderId}
+     * @return 订单 orderId
      */
     @Override
     @Transactional
@@ -96,46 +96,42 @@ public class SeckillServiceImpl implements SeckillService {
             throw new BizException(ErrorCode.ACTIVITY_ENDED);
         }
 
-        // 预创建订单（status=0 排队中），客户端拿到 orderId 即可轮询
-        SeckillOrder order = new SeckillOrder();
-        order.setUserId(userId);
-        order.setActivityId(activityId);
-        order.setStatus(0); // PROCESSING
-        orderMapper.insert(order);
-        Long orderId = order.getId();
-
         String stockKey  = String.format(RedisKeyConstant.SECKILL_STOCK,  activityId);
         String bookedKey = String.format(RedisKeyConstant.SECKILL_BOOKED, activityId);
 
-        // Lua 原子扣减：防重 + 库存检查 + DECR + SADD 四步一次完成
+        // Step 1: Lua 原子扣减（防重 + 库存），失败直接抛异常，不涉及数据库
         Long result = redisTemplate.execute(
                 deductScript,
                 List.of(stockKey, bookedKey),
                 String.valueOf(userId));
 
         if (result == null || result == -3L) {
-            // 活动库存未预热，回滚订单
-            log.warn("秒杀库存未预热: activityId={}, orderId={}, 已回滚订单", activityId, orderId);
-            orderMapper.deleteById(orderId);
+            log.warn("秒杀库存未预热: activityId={}, userId={}", activityId, userId);
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
         if (result == -2L) {
-            orderMapper.deleteById(orderId);
             throw new BizException(ErrorCode.DUPLICATE_BOOK);
         }
         if (result == -1L) {
-            orderMapper.deleteById(orderId);
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
 
-        // Lua 扣减成功，发 Kafka 异步更新订单为 SUCCESS
+        // Step 2: Lua 扣减成功后再建订单，直接置为 SUCCESS，无幽灵订单问题
+        SeckillOrder order = new SeckillOrder();
+        order.setUserId(userId);
+        order.setActivityId(activityId);
+        order.setStatus(1); // SUCCESS
+        orderMapper.insert(order);
+        Long orderId = order.getId();
+
+        // Step 3: 发 Kafka 异步对账（Consumer 校验 Redis 库存与 DB 订单数一致性）
         String payload = String.format(
                 "{\"orderId\":%d,\"userId\":%d,\"activityId\":%d,\"remainStock\":%d}",
                 orderId, userId, activityId, result);
         kafkaTemplate.send(KafkaTopicConstant.TOPIC_SECKILL_ORDER,
                 String.valueOf(activityId), payload);
 
-        log.info("秒杀报名成功入队: orderId={}, userId={}, activityId={}, remainStock={}", orderId, userId, activityId, result);
+        log.info("秒杀报名成功: orderId={}, userId={}, activityId={}, remainStock={}", orderId, userId, activityId, result);
         return String.valueOf(orderId);
     }
 

@@ -17,12 +17,14 @@ public class SeckillController {
 
     private final SeckillService seckillService;
 
-    /** GET /api/v1/activities — 活动列表（公开） */
+    /** GET /api/v1/activities — 活动列表（公开；clubId/status 可选过滤） */
     @GetMapping("/activities")
     public Result<Page<SeckillActivity>> listActivities(
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return Result.ok(seckillService.listActivities(page, size));
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) Long clubId,
+            @RequestParam(required = false) Integer status) {
+        return Result.ok(seckillService.listActivities(page, size, clubId, status));
     }
 
     /** GET /api/v1/activities/{activityId} — 活动详情（公开） */
@@ -37,7 +39,7 @@ public class SeckillController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long activityId) {
         String orderId = seckillService.book(activityId, userId);
-        return Result.ok("报名排队中，请轮询 /api/v1/orders/" + orderId + " 查看结果", Map.of("orderId", orderId));
+        return Result.ok("报名成功", Map.of("orderId", orderId));
     }
 
     /** GET /api/v1/orders/{orderId} — 查询订单结果（需登录，校验归属） */

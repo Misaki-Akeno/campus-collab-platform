@@ -1,6 +1,42 @@
 # Changelog
 
-## [Unreleased] — 2026-04-13 代码审查 Round 2 修复
+## [Unreleased] — 2026-04-13 设计问题全量修复
+
+### 安全修复
+
+- **所有服务 `application.yml`**：MySQL 密码、MinIO 密钥从硬编码改为 `${ENV_VAR}` 环境变量占位符（A-04）；`.env.example` 补全所有敏感变量模板
+- **`campus-file-service` `UploadServiceImpl.initUpload()`**：秒传判断从仅校验 MD5 改为 `MD5 + fileSize` 双重校验，防止 Hash Flooding 攻击（A-06）
+
+### 架构修复
+
+- **`campus-seckill-service` `SeckillServiceImpl.book()`**：执行顺序从"先建单再 Lua"改为**先 Lua 后建单**，彻底消除"幽灵订单"（Lua 失败后无法回滚的悬空记录）；订单直接以 `SUCCESS(1)` 状态写入，Kafka 改为仅做异步对账（A-02）
+- **`campus-api` `UserFeignClient`**：路径从 `/user/api/v1/users/{userId}/basic`（含 Gateway 前缀）修正为 `/api/v1/users/{userId}/basic`（直连服务内部端口，Feign 不经过 Gateway）（A-03）
+
+### 新增功能
+
+- **`campus-club-service` 公告管理**：实现 `createAnnouncement` / `listAnnouncements`，新增接口（D-04）：
+  - `POST /api/v1/clubs/{clubId}/announcements`（社长/副社长发布，`memberRole >= 1`）
+  - `GET /api/v1/clubs/{clubId}/announcements`（公开，分页，置顶优先）
+- **`campus-club-service` 入社审批流程**：`joinClub` 从"直接加入"改为"申请待审批"（A-07）：
+  - `club_member` 新增 `status` 字段（0-待审核 1-已通过 2-已拒绝），`join_time` 改为审批通过时才填写
+  - 新增接口 `POST /api/v1/clubs/{clubId}/members/{memberId}/approve`（社长/副社长审批）
+  - 新增错误码 `JOIN_REQUEST_EXISTS(1016)` / `JOIN_REQUEST_NOT_FOUND(1017)`
+- **`campus-club-service` Feign 内部端点**：新增 `GET /api/v1/clubs/{clubId}/basic` 供 ClubFeignClient 调用
+- **`campus-api`**：新增 `ClubFeignClient` + `ClubBasicDTO` + `ClubFeignClientFallbackFactory`（A-03）
+- **`campus-api`**：新增 `FileFeignClient` + `FileBasicDTO` + `FileFeignClientFallbackFactory`（A-03）
+
+### 接口变更（Breaking Change）
+
+- **`campus-club-service` `POST /api/v1/clubs`**：创建社团参数从 `@RequestParam`（URL 查询参数）改为 `@RequestBody JSON`，支持参数校验注解（A-01）
+  - 新增 `CreateClubRequest` DTO：`name`（必填，≤128字符）+ `description`（可选）+ `category`（可选）
+- **`campus-seckill-service` `GET /api/v1/activities`**：新增可选过滤参数 `clubId` / `status`，与 API.md 文档对齐（D-08）
+
+### 数据库变更
+
+- `club_member` 表：新增 `status tinyint NOT NULL DEFAULT '0'`，新增索引 `idx_club_status(club_id, status)`；`join_time` 改为 `DEFAULT NULL`
+- `seckill_order` 表：`status` 注释更新（去掉"排队中"，直接写入 SUCCESS）
+
+
 
 ### 修复（Critical）
 

@@ -53,13 +53,15 @@ CREATE TABLE `club_member` (
   `user_id`     bigint       NOT NULL                              COMMENT '用户ID',
   `club_id`     bigint       NOT NULL                              COMMENT '社团ID',
   `member_role` tinyint      NOT NULL DEFAULT '0'                  COMMENT '0-成员 1-副社长 2-社长',
-  `join_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP    COMMENT '加入时间',
+  `status`      tinyint      NOT NULL DEFAULT '0'                  COMMENT '申请状态: 0-待审核 1-已通过 2-已拒绝',
+  `join_time`   datetime     DEFAULT NULL                          COMMENT '审批通过时间（待审核时为NULL）',
   `create_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted`  tinyint      NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_club` (`user_id`, `club_id`),
-  KEY `idx_club_id` (`club_id`)
+  KEY `idx_club_id` (`club_id`),
+  KEY `idx_club_status` (`club_id`, `status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='社团成员关联表';
 
 -- ============================================================
@@ -111,7 +113,7 @@ CREATE TABLE `seckill_order` (
   `id`            bigint       NOT NULL                            COMMENT '订单ID',
   `user_id`       bigint       NOT NULL                            COMMENT '报名用户ID',
   `activity_id`   bigint       NOT NULL                            COMMENT '活动ID',
-  `status`        tinyint      NOT NULL DEFAULT '0'                COMMENT '0-排队中 1-成功 2-已取消',
+  `status`        tinyint      NOT NULL DEFAULT '1'                COMMENT '1-成功 2-已取消/失败',
   `cancel_reason` varchar(256) DEFAULT NULL                        COMMENT '取消原因',
   `create_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

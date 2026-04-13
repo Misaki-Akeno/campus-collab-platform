@@ -38,8 +38,9 @@ public class UploadServiceImpl implements UploadService {
 
         FileMeta existing = fileMetaMapper.selectById(fileMd5);
 
-        if (existing != null && existing.getUploadStatus() == UploadStatus.COMPLETED) {
-            // 秒传：文件已存在且完整
+        if (existing != null && existing.getUploadStatus() == UploadStatus.COMPLETED
+                && existing.getFileSize() == fileSize) {
+            // 秒传：MD5 + fileSize 双重匹配，防 Hash Flooding 攻击
             log.info("文件秒传命中: fileId={}, fileName={}", fileMd5, fileName);
             result.put("type", "instant");
             result.put("fileUrl", existing.getFileUrl());

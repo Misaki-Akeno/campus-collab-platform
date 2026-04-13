@@ -1,12 +1,16 @@
 package com.campus.club.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.campus.api.club.ClubBasicDTO;
+import com.campus.club.dto.CreateAnnouncementRequest;
+import com.campus.club.dto.CreateClubRequest;
 import com.campus.club.entity.Club;
+import com.campus.club.entity.ClubAnnouncement;
 import com.campus.club.service.ClubService;
 import com.campus.common.result.Result;
 import com.campus.common.exception.BizException;
 import com.campus.common.exception.ErrorCode;
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,10 +27,8 @@ public class ClubController {
     @PostMapping
     public Result<Map<String, Object>> createClub(
             @RequestHeader("X-User-Id") Long userId,
-            @RequestParam @NotBlank String name,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String category) {
-        Long clubId = clubService.createClub(name, description, category, userId);
+            @Valid @RequestBody CreateClubRequest request) {
+        Long clubId = clubService.createClub(request, userId);
         return Result.ok("社团创建成功，待审核", Map.of("clubId", clubId));
     }
 
@@ -43,6 +45,18 @@ public class ClubController {
     @GetMapping("/{clubId}")
     public Result<Club> getClub(@PathVariable Long clubId) {
         return Result.ok(clubService.getClub(clubId));
+    }
+
+    /** GET /api/v1/clubs/{clubId}/basic — 社团精简信息（Feign 内部调用） */
+    @GetMapping("/{clubId}/basic")
+    public Result<ClubBasicDTO> getClubBasic(@PathVariable Long clubId) {
+        Club club = clubService.getClub(clubId);
+        ClubBasicDTO dto = new ClubBasicDTO();
+        dto.setId(club.getId());
+        dto.setName(club.getName());
+        dto.setLogoUrl(club.getLogoUrl());
+        dto.setStatus(club.getStatus());
+        return Result.ok(dto);
     }
 
     /** POST /api/v1/clubs/{clubId}/approve — 审核社团（管理员，role=2） */
@@ -64,6 +78,36 @@ public class ClubController {
             @RequestHeader("X-User-Id") Long userId,
             @PathVariable Long clubId) {
         clubService.joinClub(clubId, userId);
+        return Result.ok("入社申请已提交，等待社长审批");
+    }
+
+    /** POST /api/v1/clubs/{clubId}/members/{memberId}/approve — 审批入社申请（社长/副社长） */
+    @PostMapping("/{clubId}/members/{memberId}/approve")
+    public Result<Void> approveMember(
+            @RequestHeader("X-User-Id") Long operatorId,
+            @PathVariable Long clubId,
+            @PathVariable Long memberId,
+            @RequestParam boolean approved) {
+        clubService.approveMember(clubId, operatorId, memberId, approved);
         return Result.ok();
+    }
+
+    /** POST /api/v1/clubs/{clubId}/announcements — 发布公告（社长/副社长） */
+    @PostMapping("/{clubId}/announcements")
+    public Result<Map<String, Object>> createAnnouncement(
+            @RequestHeader("X-User-Id") Long userId,
+            @PathVariable Long clubId,
+            @Valid @RequestBody CreateAnnouncementRequest request) {
+        Long announcementId = clubService.createAnnouncement(clubId, userId, request);
+        return Result.ok(Map.of("announcementId", announcementId));
+    }
+
+    /** GET /api/v1/clubs/{clubId}/announcements — 公告列表（公开） */
+    @GetMapping("/{clubId}/announcements")
+    public Result<Page<ClubAnnouncement>> listAnnouncements(
+            @PathVariable Long clubId,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return Result.ok(clubService.listAnnouncements(clubId, page, size));
     }
 }
