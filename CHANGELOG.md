@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased] — 2026-04-13 文档体系拆分重构
+
+### 新增
+
+- **`ARCHITECTURE.md`**（根目录）：从白皮书提炼的架构总览文档，含微服务拓扑图、技术选型、ER 图、安全体系、部署架构、SLA、里程碑、工程规范速查
+- **`docs/API.md`**：独立接口契约文档，包含全部 15+ REST API（完整 Request/Response）+ WebSocket 指令集 + 全局异常码表
+- **各子项目 `CLAUDE.md`**：为 campus-gateway / campus-user-service / campus-club-service / campus-im-service / campus-seckill-service / campus-file-service / campus-common / campus-api / campus-platform-frontend / ai-bot 共 10 个子项目创建各自的开发指南
+
+### 变更
+
+- **根目录 `CLAUDE.md`**：从 2 行占位说明扩展为完整 AI 上下文注入，包含核心文档引用表、快速启动命令、子项目入口表、编码规范速查、Git 分支策略
+
+---
+
 ## [Unreleased] — 2026-04-13 脚手架全面夯实重构
 
 ### 修复
