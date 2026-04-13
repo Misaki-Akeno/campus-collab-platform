@@ -8,9 +8,6 @@ spring:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-      config:
-        server-addr: 127.0.0.1:8848
-        file-extension: yml
     gateway:
       discovery:
         locator:
@@ -28,19 +25,35 @@ spring:
           uri: lb://campus-user-service
           predicates:
             - Path=/user/**
+          filters:
+            - StripPrefix=1
         - id: club-service
           uri: lb://campus-club-service
           predicates:
             - Path=/club/**
+          filters:
+            - StripPrefix=1
         - id: im-service
           uri: lb://campus-im-service
           predicates:
             - Path=/im/**
+          filters:
+            - StripPrefix=1
         - id: seckill-service
           uri: lb://campus-seckill-service
           predicates:
             - Path=/seckill/**
+          filters:
+            - StripPrefix=1
         - id: file-service
           uri: lb://campus-file-service
           predicates:
             - Path=/file/**
+          filters:
+            - StripPrefix=1
+
+campus:
+  jwt:
+    secret: Y2FtcHVzLXBsYXRmb3JtLXNlY3JldC1rZXktMjAyNi0wNC0xMw==
+    access-expire: 7200000    # 2小时（毫秒）
+    refresh-expire: 604800000 # 7天（毫秒）

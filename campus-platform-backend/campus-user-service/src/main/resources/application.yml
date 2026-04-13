@@ -8,29 +8,37 @@ spring:
   application:
     name: campus-user-service
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/campus_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://127.0.0.1:3306/campus_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: root123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      connection-timeout: 30000
   cloud:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-      config:
-        server-addr: 127.0.0.1:8848
-        file-extension: yml
   data:
     redis:
       host: 127.0.0.1
       port: 6379
       database: 0
+      timeout: 3000ms
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     map-underscore-to-camel-case: true
   global-config:
     db-config:
       logic-delete-field: isDeleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+campus:
+  jwt:
+    secret: Y2FtcHVzLXBsYXRmb3JtLXNlY3JldC1rZXktMjAyNi0wNC0xMw==
+    access-expire: 7200000
+    refresh-expire: 604800000

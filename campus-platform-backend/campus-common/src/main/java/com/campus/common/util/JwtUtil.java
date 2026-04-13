@@ -1,51 +1,55 @@
 package com.campus.common.util;
 
-import io.jsonwebtoken.*;
+import com.campus.common.config.JwtProperties;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
 import java.util.UUID;
 
+/**
+ * JWT 工具类（Spring Bean，密钥通过 JwtProperties 统一配置）
+ */
 @Slf4j
+@Component
+@RequiredArgsConstructor
 public class JwtUtil {
 
-    // 生产环境需通过配置注入，此处仅作为脚手架默认值
-    private static final String SECRET = "campus-platform-secret-key-12345678901234567890";
-    private static final long ACCESS_EXPIRE = 2 * 60 * 60 * 1000; // 2h
-    private static final long REFRESH_EXPIRE = 7 * 24 * 60 * 60 * 1000; // 7d
+    private final JwtProperties jwtProperties;
 
-    private static final SecretKey KEY = Keys.hmacShaKeyFor(Decoders.BASE64.decode(
-            io.jsonwebtoken.io.Encoders.BASE64.encode(SECRET.getBytes())));
-
-    public static String generateAccessToken(Long userId, String username, Integer role) {
-        return generateToken(userId, username, role, ACCESS_EXPIRE);
+    public String generateAccessToken(Long userId, String username, Integer role) {
+        return generateToken(userId, username, role, jwtProperties.getAccessExpire());
     }
 
-    public static String generateRefreshToken(Long userId, String username, Integer role) {
-        return generateToken(userId, username, role, REFRESH_EXPIRE);
+    public String generateRefreshToken(Long userId, String username, Integer role) {
+        return generateToken(userId, username, role, jwtProperties.getRefreshExpire());
     }
 
-    private static String generateToken(Long userId, String username, Integer role, long expire) {
+    private String generateToken(Long userId, String username, Integer role, long expire) {
         Date now = new Date();
-        Date expiration = new Date(now.getTime() + expire);
         return Jwts.builder()
                 .subject(String.valueOf(userId))
                 .claim("username", username)
                 .claim("role", role)
                 .claim("jti", UUID.randomUUID().toString())
                 .issuedAt(now)
-                .expiration(expiration)
-                .signWith(KEY, Jwts.SIG.HS256)
+                .expiration(new Date(now.getTime() + expire))
+                .signWith(buildKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
-    public static Claims parseToken(String token) {
+    public Claims parseToken(String token) {
         try {
             return Jwts.parser()
-                    .verifyWith(KEY)
+                    .verifyWith(buildKey())
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
@@ -58,13 +62,23 @@ public class JwtUtil {
         }
     }
 
-    public static Long getUserId(String token) {
-        Claims claims = parseToken(token);
+    public Long getUserId(Claims claims) {
         return Long.valueOf(claims.getSubject());
     }
 
-    public static String getJti(String token) {
-        Claims claims = parseToken(token);
+    public Integer getRole(Claims claims) {
+        return claims.get("role", Integer.class);
+    }
+
+    public String getUsername(Claims claims) {
+        return claims.get("username", String.class);
+    }
+
+    public String getJti(Claims claims) {
         return claims.get("jti", String.class);
+    }
+
+    private SecretKey buildKey() {
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
     }
 }

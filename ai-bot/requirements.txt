@@ -3,3 +3,18 @@ uvicorn[standard]==0.27.0
 pydantic==2.6.0
 httpx==0.26.0
 python-dotenv==1.0.0
+
+# Claude API / AI Agent
+anthropic>=0.25.0
+
+# LangChain 核心（RAG / Tools）
+langchain-core>=0.2.0
+
+# Redis（消息队列 + 缓存）
+redis>=5.0.0
+
+# MySQL 异步驱动（Kafka 消费落库可选）
+aiomysql>=0.2.0
+
+# Kafka 客户端
+aiokafka>=0.10.0

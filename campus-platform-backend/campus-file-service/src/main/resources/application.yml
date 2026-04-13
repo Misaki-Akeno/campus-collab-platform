@@ -8,31 +8,33 @@ spring:
   application:
     name: campus-file-service
   datasource:
-    url: jdbc:mysql://127.0.0.1:3306/campus_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://127.0.0.1:3306/campus_platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: root123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
   cloud:
     nacos:
       discovery:
         server-addr: 127.0.0.1:8848
-      config:
-        server-addr: 127.0.0.1:8848
-        file-extension: yml
   data:
     redis:
       host: 127.0.0.1
       port: 6379
-      database: 0
-    minio:
-      endpoint: http://127.0.0.1:9002
-      access-key: minioadmin
-      secret-key: minioadmin123
-      bucket-name: campus-files
+      database: 4
+
+# MinIO 配置（通过自定义 MinioProperties 读取）
+minio:
+  endpoint: http://127.0.0.1:9002
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket-name: campus-files
 
 mybatis-plus:
   configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
     map-underscore-to-camel-case: true
   global-config:
     db-config:

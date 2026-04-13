@@ -3,6 +3,7 @@ package com.campus.gateway.filter;
 import com.campus.common.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -19,7 +20,10 @@ import java.util.List;
 
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class JwtAuthFilter implements GlobalFilter, Ordered {
+
+    private final JwtUtil jwtUtil;
 
     private static final List<String> WHITE_LIST = List.of(
             "/user/api/v1/register",
@@ -38,7 +42,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
-        // 白名单放行
         for (String pattern : WHITE_LIST) {
             if (pathMatcher.match(pattern, path)) {
                 return chain.filter(exchange);
@@ -54,22 +57,24 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         String token = authHeader.substring(BEARER_PREFIX.length());
         try {
-            Claims claims = JwtUtil.parseToken(token);
-            Long userId = Long.valueOf(claims.getSubject());
-            Integer role = claims.get("role", Integer.class);
+            Claims claims = jwtUtil.parseToken(token);
+            Long userId = jwtUtil.getUserId(claims);
+            Integer role = jwtUtil.getRole(claims);
 
             ServerHttpRequest mutatedRequest = request.mutate()
                     .header("X-User-Id", String.valueOf(userId))
                     .header("X-User-Role", String.valueOf(role))
+                    // 移除原始 Authorization，防止内部服务滥用
+                    .headers(headers -> headers.remove(AUTHORIZATION_HEADER))
                     .build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
         } catch (ExpiredJwtException e) {
-            log.warn("Token已过期");
+            log.warn("Token已过期: {}", path);
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         } catch (Exception e) {
-            log.warn("Token校验失败: {}", e.getMessage());
+            log.warn("Token校验失败: {} - {}", path, e.getMessage());
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }

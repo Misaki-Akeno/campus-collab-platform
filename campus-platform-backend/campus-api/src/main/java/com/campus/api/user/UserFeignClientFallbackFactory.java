@@ -14,7 +14,7 @@ public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeign
         return new UserFeignClient() {
             @Override
             public Result<UserBasicDTO> getUserBasic(Long userId) {
-                return Result.error("用户服务暂不可用");
+                return Result.fail(com.campus.common.exception.ErrorCode.SYSTEM_ERROR, "用户服务暂不可用");
             }
         };
     }

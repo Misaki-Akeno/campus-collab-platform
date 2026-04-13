@@ -1,10 +1,9 @@
+# bootstrap.yml 仅保留 Nacos 配置中心地址（服务发现已移至 application.yml）
 spring:
   application:
     name: campus-gateway
   cloud:
     nacos:
-      discovery:
-        server-addr: 127.0.0.1:8848
       config:
         server-addr: 127.0.0.1:8848
         file-extension: yml

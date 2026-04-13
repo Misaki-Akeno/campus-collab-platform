@@ -1,63 +1,41 @@
-# 20260412校园社团协作平台脚手架搭建进度
+# Changelog
 
-## 状态摘要
+## [Unreleased] — 2026-04-13 脚手架全面夯实重构
 
-基础脚手架已完成，项目结构按白皮书第6节规范搭建，Maven 编译已通过 (`mvn clean compile`)。
+### 修复
 
-## 已完成内容
+- **`campus-common` `Result<T>`**：字段 `message` → `msg`，`timestamp` → `traceId`，与白皮书 API 规范对齐；统一静态方法为 `ok()` / `fail()`
+- **`campus-common` `ErrorCode`**：秒杀域错误码从 1031-1035 修正为白皮书规定的 5001-5005（`STOCK_EMPTY` / `DUPLICATE_BOOK` / `ACTIVITY_NOT_START` / `ACTIVITY_ENDED` / `FILE_UPLOAD_FAIL`）；新增 `TOO_MANY_REQUESTS(429)` / `USER_DISABLED` / `RECALL_TIMEOUT` 等缺失枚举
+- **`campus-common` `GlobalExceptionHandler`**：适配新 `Result.fail()` 方法；新增 `MethodArgumentNotValidException` 处理
+- **`campus-gateway` `JwtAuthFilter`**：JWT 解析从静态工具方法改为注入 `JwtUtil` Bean；转发请求时移除原始 `Authorization` Header 防止内部滥用
+- **`campus-gateway` `application.yml`**：Gateway 路由补充 `StripPrefix=1` 过滤器（路由前缀 `/user/**` → 内部 `/api/v1/**`）；补充 JWT 配置节点
+- **`docker/docker-compose.yml`**：Redis 镜像版本 `redis:8.6.2`（不存在）→ `redis:7.4.8`；Kafka 版本 `4.0.2` → `4.0.1`（与白皮书对齐）；所有服务增加 `restart: unless-stopped` 和 `healthcheck`
 
-### 1. 工程目录结构
-- 创建了完整的多模块 Maven 后端工程（`campus-platform-backend`）
-- 创建了 React Native 前端目录（`campus-platform-frontend`）
-- 创建了 Python AI-Bot 目录（`ai-bot`）
-- 创建了 Docker 本地开发环境编排（`docker/`）
-- 创建了 CI 配置（`.github/workflows/ci.yml`）和 VSCode 工作区配置（`.vscode/`）
+### 新增
 
-### 2. 后端模块 POM 与基础配置
-- `campus-platform-backend/pom.xml` — 父 POM，统一管理版本（Spring Boot 3.2.12 / Spring Cloud 2023.0.3 / SCA 2023.0.1.2）
-- `campus-common` — 公共模块 POM
-- `campus-api` — Feign 契约模块 POM
-- `campus-gateway` — 网关模块 POM
-- `campus-user-service` / `campus-club-service` / `campus-im-service` / `campus-seckill-service` / `campus-file-service` — 5 个业务微服务 POM
-- 所有服务均配置了 `application.yml` 和 `bootstrap.yml`（Nacos 注册/配置中心）
+- **`campus-common` `JwtProperties`**：`@ConfigurationProperties(prefix = "campus.jwt")` 配置类，统一管理 JWT 密钥和过期时间，Gateway 与业务服务共享
+- **`campus-common` `JwtUtil`**：重构为 Spring `@Component`，通过构造注入 `JwtProperties`；增加 `getUserId(Claims)` / `getRole(Claims)` / `getUsername(Claims)` 便捷方法
+- **`campus-user-service` `UserService` / `UserServiceImpl`**：完整实现注册/登录/刷新Token/获取我的信息四个核心接口；BCrypt 密码加密；refreshToken 存入 Redis 单端登录控制
+- **`campus-user-service` `AuthController`**：补全 `GET /api/v1/me`、`POST /api/v1/token/refresh` 端点；从 Gateway 注入的 `X-User-Id` Header 读取用户身份
+- **`campus-user-service` DTO 层**：`RegisterRequest` 新增密码强度、用户名格式校验；新建 `TokenRefreshRequest` / `TokenRefreshResponse` / `MeResponse`；`LoginResponse` 结构改为含嵌套 `UserInfo`
 
-### 3. campus-common 公共代码
-- `Result<T>` — 统一响应包装
-- `ErrorCode` — 错误码枚举（按白皮书码段划分）
-- `BizException` / `GlobalExceptionHandler` — 全局异常体系
-- `BaseEntity` / `PageRequest` — 公共模型
-- `JwtUtil` — JWT 生成/解析工具
-- `SnowflakeIdUtil` — 雪花算法 ID 生成
-- `RedisKeyConstant` / `KafkaTopicConstant` — 公共常量
-- `MyBatisPlusMetaObjectHandler` — 自动填充 `create_time` / `update_time` / `is_deleted`
+### 变更
 
-### 4. campus-gateway 网关
-- `GatewayApplication.java` — 启动类
-- `JwtAuthFilter` — 全局 JWT 鉴权过滤器（含白名单、X-User-Id/X-User-Role Header 注入）
-- `application.yml` — 路由配置（user/club/im/seckill/file）
+- **`campus-user-service` `pom.xml`**：移除 `spring-boot-starter-security`（鉴权由 Gateway 统一处理）；新增 `spring-security-crypto`（仅 BCrypt）、`spring-boot-starter-validation`、`spring-boot-starter-data-redis`
+- **各微服务 `application.yml`**：MyBatis-Plus `log-impl` 由 `StdOutImpl` 改为 `Slf4jImpl`；补充 `allowPublicKeyRetrieval=true`、Hikari 连接池配置；各服务 Redis database 编号隔离（0-4）
+- **`ai-bot/requirements.txt`**：新增 `anthropic>=0.25.0` / `langchain-core>=0.2.0` / `redis>=5.0.0` / `aiomysql` / `aiokafka`
 
-### 5. 业务微服务空壳
-- 5 个业务服务均已创建启动类、包扫描、MyBatis-Plus MapperScan
-- `campus-user-service` 额外提供了示例代码（`SysUser` 实体、`UserMapper`、登录/注册 DTO、`AuthController` 壳子）
-- `campus-api` 提供了 `UserFeignClient` + `UserBasicDTO` + FallbackFactory 示例
+---
 
-### 6.本地开发基础设施
-- `docker/docker-compose.yml` — 一键启动 MySQL 8.4 / Redis 8.6.2 / Kafka 4.0.2 / Nacos 2.5.2 / MinIO（MinIO API 端口已调整为 9002，避免与 gateway 9000 冲突）
-- `docker/mysql/init.sql` — 全量建库建表脚本（覆盖 user/club/seckill/im/file 五域）
-- `docs/sql/V1.0__init.sql` — 数据库脚本版本化备份
-- `Makefile` — 提供 `make dev / stop / build / test / clean` 快捷命令
+## [0.1.0] — 2026-04-12 初始脚手架搭建
 
-### 7. 前端与 AI 侧
-- `campus-platform-frontend/package.json` — React Native 0.73 依赖骨架
-- `ai-bot/requirements.txt` + `app/main.py` — FastAPI 空壳服务
+### 新增
 
-## 尚未开始/待后续填充
-
-- **业务逻辑实现**：各微服务的 Service / Controller / Mapper XML 方法尚未完整实现
-- **Gateway Sentinel 限流**：仅预留配置位，未配置具体规则
-- **WebSocket IM 核心**：`im-service` 的 WebSocket Server / SessionManager / Dispatcher 仅目录存在
-- **秒杀 Lua 脚本**：`seckill-service` 的 Redis Lua 扣库存逻辑待实现
-- **文件上传 OSS 封装**：`file-service` 的 MinIO SDK 配置和分片逻辑待实现
-- **前端页面**：React Native screens 均为空目录
-- **AI Agent RAG / Tools**：`ai-bot` 仅提供 health 接口
-
+- 完整多模块 Maven 后端工程（`campus-platform-backend`）
+- 5 个业务微服务空壳 + Gateway + campus-common + campus-api
+- Docker Compose 本地开发环境（MySQL 8.4 / Redis / Kafka KRaft / Nacos / MinIO）
+- 全量建库建表 SQL（`docker/mysql/init.sql` + `docs/sql/V1.0__init.sql`）
+- React Native 前端目录骨架（`campus-platform-frontend`）
+- FastAPI AI-Bot 空壳服务（`ai-bot`）
+- GitHub Actions CI 配置（`.github/workflows/ci.yml`）
+- Makefile 快捷命令（`make dev / stop / build / test / clean`）
