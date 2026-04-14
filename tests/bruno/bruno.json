@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "campus-platform-api",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

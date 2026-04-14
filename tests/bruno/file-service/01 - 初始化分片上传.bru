@@ -1,0 +1,30 @@
+meta {
+  name: 01 - 初始化分片上传
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway_url}}/file/api/v1/upload/init?fileName=test.txt&fileSize=100&fileMd5=d41d8cd98f00b204e9800998ecf8427e
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("初始化上传 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("初始化上传 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("初始化上传 - 返回上传类型", function() {
+    const data = res.getBody().data;
+    expect(data.type).to.be.oneOf(["new", "instant", "resume"]);
+  });
+}

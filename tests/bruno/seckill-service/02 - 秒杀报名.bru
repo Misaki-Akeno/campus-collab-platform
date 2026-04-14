@@ -1,0 +1,31 @@
+meta {
+  name: 02 - 秒杀报名
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{gateway_url}}/seckill/api/v1/activities/{{registered_activity_id}}/book
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("秒杀报名 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("秒杀报名 - 返回 orderId 或业务码", function() {
+    const body = res.getBody();
+    // 正常排队 (200) 或库存不足 (5001) 或重复报名 (5002) 都是预期结果
+    const expectedCodes = [200, 5001, 5002, 5003, 5004, 5005];
+    expect(body.code).to.be.oneOf(expectedCodes);
+    if (body.data && body.data.orderId) {
+      bru.setEnvVar("registered_order_id", body.data.orderId);
+    }
+  });
+}

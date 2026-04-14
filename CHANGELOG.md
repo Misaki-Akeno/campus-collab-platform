@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased] — 2026-04-14 测试方案调整：移除集成测试，引入 Bruno HTTP 测试
+
+### 测试基础设施变更
+- **移除 Testcontainers 集成测试方案**：因环境依赖复杂度高、调试困难，移除所有基于 Testcontainers 的集成测试配置
+- **引入 Bruno HTTP 测试集**（`tests/bruno/`）：轻量级 API 测试方案，用 `.bru` 文件定义测试用例，支持断言/环境变量/链路传递
+- **新增 `make http-test` / `make http-test-ci` 目标**：通过 Bruno CLI (`bru run`) 自动化执行 API 测试，无需 Docker / Spring 上下文
+- **保留完整单元测试**（67 用例），新增 HTTP 集成测试作为服务运行后的端到端验证手段
+
+---
+
 ## [Unreleased] — 2026-04-13 设计问题全量修复
 
 ### 安全修复

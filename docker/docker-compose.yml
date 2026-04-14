@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: mysql:8.4
+    image: ${DOCKER_REGISTRY_PREFIX}mysql:8.4
     container_name: campus-mysql
     restart: unless-stopped
     ports:
@@ -21,7 +21,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7.4.8
+    image: ${DOCKER_REGISTRY_PREFIX}redis:7.4.8
     container_name: campus-redis
     restart: unless-stopped
     ports:
@@ -37,7 +37,7 @@ services:
       retries: 5
 
   kafka:
-    image: apache/kafka:4.0.1
+    image: ${DOCKER_REGISTRY_PREFIX}apache/kafka:4.0.1
     container_name: campus-kafka
     restart: unless-stopped
     ports:
@@ -56,7 +56,7 @@ services:
       - kafka-data:/var/lib/kafka/data
 
   nacos:
-    image: nacos/nacos-server:v2.5.2
+    image: ${DOCKER_REGISTRY_PREFIX}nacos/nacos-server:v2.5.2
     container_name: campus-nacos
     restart: unless-stopped
     ports:
@@ -74,7 +74,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: ${DOCKER_REGISTRY_PREFIX}minio/minio:latest
     container_name: campus-minio
     restart: unless-stopped
     ports:

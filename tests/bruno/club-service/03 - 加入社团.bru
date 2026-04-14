@@ -1,0 +1,21 @@
+meta {
+  name: 03 - 加入社团
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{gateway_url}}/club/api/v1/clubs/{{registered_club_id}}/join
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("加入社团 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

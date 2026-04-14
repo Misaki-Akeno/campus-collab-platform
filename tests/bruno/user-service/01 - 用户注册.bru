@@ -1,0 +1,36 @@
+meta {
+  name: 01 - 用户注册
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{gateway_url}}/user/api/v1/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{test_username}}",
+    "password": "{{test_password}}",
+    "email": "{{test_email}}",
+    "nickname": "测试用户"
+  }
+}
+
+tests {
+  test("注册成功 - HTTP 201", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("注册成功 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("注册成功 - 返回 userId", function() {
+    const data = res.getBody().data;
+    expect(data.userId).to.not.be.null();
+    bru.setEnvVar("registered_user_id", data.userId);
+  });
+}

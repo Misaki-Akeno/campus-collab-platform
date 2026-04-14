@@ -27,24 +27,53 @@ make dev
 make build
 ```
 
-### 3. 停止本地环境
+### 3. 运行测试
+
+```bash
+make test       # 单元测试（快，无需启动服务）
+make test-all   # 全自动流水线：单测 + HTTP 集成测试（需 Docker）
+```
+
+### 4. 停止本地环境
 
 ```bash
 make stop
 ```
 
-### 4. 运行测试
+## 常用 Make 命令
+
+| 命令 | 说明 | 前置条件 |
+|------|------|----------|
+| `make help` | 显示所有可用命令 | — |
+| `make dev` | 启动中间件（MySQL/Redis/Kafka/Nacos/MinIO） | Docker |
+| `make stop` | 停止中间件容器 | Docker |
+| `make build` | 编译所有后端服务（跳过测试） | JDK 21 + Maven |
+| `make test` | 运行单元测试 | — |
+| `make test-all` | **全自动流水线**：启动中间件 → 编译 → 启动服务 → 单测 → HTTP 测试 → 清理 | Docker + JDK 21 + Maven + Bruno CLI |
+| `make run-all` | 后台启动所有 6 个 Java 服务 | 需先 `make build` + `make dev` |
+| `make stop-all` | 停止所有 Java 服务 + 中间件 + 清理日志 | — |
+| `make http-test` | 交互模式运行 Bruno HTTP 测试 | Bruno CLI (`npm i -g @usebruno/cli`) |
+| `make http-test-ci` | CI 模式运行 Bruno HTTP 测试（JSON 输出） | Bruno CLI |
+| `make clean` | 清理 Maven 构建产物 | — |
+
+### HTTP 测试（Bruno）
+
+使用轻量级 CLI 工具 `bru` 对运行中的服务执行端到端 API 验证。测试用例定义在 `tests/bruno/`，覆盖了注册 → 登录 → Token 刷新 → 社团/活动/IM/文件全链路。
 
 ```bash
-make test       # 运行全量单元测试 (67 个用例)
+npm install -g @usebruno/cli    # 全局安装（仅一次）
+make http-test                  # 本地交互模式查看结果
 ```
 
-| 命令 | 说明 |
-|------|------|
-| `make test` | 运行全部单元测试，无需启动 Docker（Mock 所有外部依赖） |
-| `mvn test -pl campus-api` | 仅测试 campus-api (Feign 降级验证) |
-| `mvn test -pl campus-user-service` | 仅测试用户服务 |
-| `mvn test -pl campus-club-service` | 仅测试社团服务 |
+**测试覆盖**:
+
+| 服务 | 测试用例 | 说明 |
+|------|----------|------|
+| 用户服务 | 注册 → 登录 → 刷新 Token → 获取用户信息 | 环境变量自动传递 userId / accessToken |
+| 社团服务 | 社团列表 → 创建社团 → 加入社团 | clubId 链路传递 |
+| 秒杀服务 | 活动列表 → 秒杀报名 | 验证多业务状态码 (200/5001/5002) |
+| IM 服务 | 会话列表 → 离线消息同步 | 需鉴权 |
+| 文件服务 | 初始化分片上传 | 验证上传类型返回 (new/instant/resume) |
 
 **测试体系**:
 
@@ -53,8 +82,9 @@ make test       # 运行全量单元测试 (67 个用例)
 | **Service 层** | JUnit 5 + Mockito + @InjectMocks | 注册/登录/Token 刷新/改密、社团 CRUD/成员管理 |
 | **Controller 层** | Standalone MockMvc + GlobalExceptionHandler | 请求/响应映射、参数校验、异常处理 |
 | **API 层** | 纯单元测试 | Feign 降级工厂行为验证 |
+| **HTTP 端到端** | Bruno CLI + `.bru` 测试集 | 全服务 API 链路验证 |
 
-**当前状态**: 67 个测试用例，全部分区通过（campus-api: 4 / campus-user-service: 28 / campus-club-service: 35）。
+**当前状态**: 67 个单元测试用例 + 12 个 HTTP 集成测试用例。
 
 ## 项目结构
 

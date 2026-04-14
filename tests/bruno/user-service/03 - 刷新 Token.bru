@@ -1,0 +1,31 @@
+meta {
+  name: 03 - 刷新 Token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{gateway_url}}/user/api/v1/token/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  // 需要先执行登录获取 refreshToken，此测试用例依赖登录后的环境
+  // 运行时需确保 access_token 有效
+  {
+    "refreshToken": "placeholder_replace_after_login"
+  }
+}
+
+tests {
+  test("刷新成功 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("刷新成功 - 返回新 accessToken", function() {
+    const data = res.getBody().data;
+    expect(data.accessToken).to.not.be.null();
+    bru.setEnvVar("access_token", data.accessToken);
+  });
+}

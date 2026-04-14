@@ -1,0 +1,30 @@
+meta {
+  name: 04 - 获取当前用户信息
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{gateway_url}}/user/api/v1/me
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("获取用户信息 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("获取用户信息 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("获取用户信息 - 返回用户数据", function() {
+    const data = res.getBody().data;
+    expect(data.userId).to.not.be.null();
+    expect(data.username).to.not.be.null();
+  });
+}

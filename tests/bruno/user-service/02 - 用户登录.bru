@@ -1,0 +1,41 @@
+meta {
+  name: 02 - 用户登录
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{gateway_url}}/user/api/v1/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "username": "{{test_username}}",
+    "password": "{{test_password}}"
+  }
+}
+
+tests {
+  test("登录成功 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("登录成功 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("登录成功 - 返回 accessToken", function() {
+    const data = res.getBody().data;
+    expect(data.accessToken).to.not.be.null();
+    expect(data.refreshToken).to.not.be.null();
+    bru.setEnvVar("access_token", data.accessToken);
+  });
+
+  test("登录成功 - 返回 userInfo", function() {
+    const data = res.getBody().data;
+    expect(data.userInfo).to.not.be.null();
+    expect(data.userInfo.username).to.equal(bru.getEnvVar("test_username"));
+  });
+}

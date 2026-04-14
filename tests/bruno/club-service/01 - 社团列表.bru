@@ -1,0 +1,26 @@
+meta {
+  name: 01 - 社团列表
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway_url}}/club/api/v1/clubs?page=1&size=10
+  auth: none
+}
+
+tests {
+  test("社团列表 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("社团列表 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("社团列表 - 返回分页结构", function() {
+    const data = res.getBody().data;
+    expect(data.total).to.not.be.null();
+    expect(data.records).to.be.an.array();
+  });
+}

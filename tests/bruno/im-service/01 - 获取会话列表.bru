@@ -1,0 +1,29 @@
+meta {
+  name: 01 - 获取会话列表
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{gateway_url}}/im/api/v1/conversations
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("会话列表 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("会话列表 - code 200", function() {
+    expect(res.getBody().code).to.equal(200);
+  });
+
+  test("会话列表 - 返回数组", function() {
+    const data = res.getBody().data;
+    expect(data).to.be.an.array();
+  });
+}
