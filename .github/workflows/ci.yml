@@ -61,7 +61,7 @@ jobs:
           REDIS_HOST=127.0.0.1
           REDIS_PORT=6379
           NACOS_SERVER_ADDR=127.0.0.1:8848
-          MINIO_ENDPOINT=127.0.0.1:9002
+          MINIO_ENDPOINT=http://127.0.0.1:9002
           MINIO_ACCESS_KEY=minioadmin
           MINIO_SECRET_KEY=minioadmin123
           MYSQL_HOST=127.0.0.1
@@ -108,7 +108,7 @@ jobs:
 
       # =========================================================
       # 收集日志（失败时）
-      # ✓ 使用 || true 防止日志收集失败掩盖原始错误
+      # 使用 || true 防止日志收集失败掩盖原始错误
       # =========================================================
       - name: Upload service logs
         if: failure()

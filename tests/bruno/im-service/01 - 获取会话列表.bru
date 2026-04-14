@@ -24,6 +24,6 @@ tests {
 
   test("会话列表 - 返回数组", function() {
     const data = res.getBody().data;
-    expect(data).to.be.an.array();
+    expect(data).to.be.an("array");
   });
 }

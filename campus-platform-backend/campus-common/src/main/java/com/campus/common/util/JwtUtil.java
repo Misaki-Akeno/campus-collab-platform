@@ -19,7 +19,6 @@ import java.util.UUID;
  * JWT 工具类（Spring Bean，密钥通过 JwtProperties 统一配置）
  */
 @Slf4j
-@Component
 @RequiredArgsConstructor
 public class JwtUtil {
 

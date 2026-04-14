@@ -64,9 +64,9 @@ campus-club-service/ # Service(29) + Controller(6) = 35 用例
 | **Service** | @ExtendWith(MockitoExtension) + @InjectMocks | MyBatis-Plus `insert()` / `updateById()` 有单参/Collection 参数歧义，**不要** `verify(mapper).insert(any())`，改用 `@MockitoSettings(Strictness.LENIENT)` |
 | **Controller** | Standalone MockMvc + GlobalExceptionHandler | 不用 @WebMvcTest（与 MyBatis-Plus 有版本冲突），使用 `MockMvcBuilders.standaloneSetup().setControllerAdvice()` |
 
-**集成测试** (待 Docker Hub 可访问时启用):
-> 已准备 Testcontainers 完整方案 (pom.xml 依赖 + TestApplication + TestDataSourceConfig + init.sql)。
-> 环境恢复后可启用 `@SpringBootTest @Testcontainers` 进行真实 MySQL/Redis 集成测试。
+**HTTP 端到端测试** (Bruno):
+> 测试集定义在 `tests/bruno/`，通过 `make http-test` 或 `make http-test-ci` 执行。
+> 覆盖全服务 API 链路：注册 → 登录 → Token 刷新 → 社团/活动/IM/文件操作。
 
 ## Git 分支策略
 

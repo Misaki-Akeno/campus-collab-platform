@@ -86,6 +86,31 @@ make http-test                  # 本地交互模式查看结果
 
 **当前状态**: 67 个单元测试用例 + 12 个 HTTP 集成测试用例。
 
+## CI/CD
+
+GitHub Actions 工作流定义在 `.github/workflows/ci.yml`，触发条件为 `push/PR` 到 `main` 或 `develop`。
+
+```
+push/PR → [set up JDK 21 + Node.js + Bruno CLI]
+        → [docker compose up (中间件)]
+        → [等待 MySQL/Redis/Nacos/MinIO 健康]
+        → [mvn package -DskipTests]
+        → [java -jar 后台启动 6 服务]
+        → [等待端口 9000/8081-8085 健康]
+        → [mvn test (单元测试)]
+        → [bru run (HTTP 端到端测试)]
+        → [失败时上传 logs/ artifact]
+        → [清理所有容器和进程]
+```
+
+| 阶段 | 超时 | 说明 |
+|------|------|------|
+| 环境准备 | 60s | JDK 21 / Maven 缓存 / Node.js 20 / Bruno CLI |
+| 启动中间件 | 300s | MySQL/Redis/Kafka/Nacos/MinIO |
+| 编译+启动服务 | 600s | mvn clean package + 后台启动 6 服务 |
+| 单元测试 | 300s | JUnit 5 (67 用例) |
+| HTTP 测试 | 60s | Bruno 端到端验证 |
+
 ## 项目结构
 
 ```

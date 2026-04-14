@@ -29,15 +29,13 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <spring-boot.version>3.5.3</spring-boot.version>
-        <spring-cloud.version>2024.0.2</spring-cloud.version>
+        <spring-boot.version>3.4.5</spring-boot.version>
+        <spring-cloud.version>2024.0.1</spring-cloud.version>
         <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
-        <mybatis-plus.version>3.5.10</mybatis-plus.version>
+        <mybatis-plus.version>3.5.12</mybatis-plus.version>
         <redisson.version>3.41.0</redisson.version>
         <hutool.version>5.8.25</hutool.version>
         <jjwt.version>0.12.5</jjwt.version>
-        <testcontainers.version>1.21.3</testcontainers.version>
-        <mybatis-spring-boot-test.version>3.0.5</mybatis-spring-boot-test.version>
     </properties>
 
     <dependencyManagement>
@@ -79,7 +77,7 @@
             <!-- 第三方 -->
             <dependency>
                 <groupId>com.baomidou</groupId>
-                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
             <dependency>

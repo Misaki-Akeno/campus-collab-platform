@@ -4,12 +4,16 @@ server:
 spring:
   application:
     name: campus-gateway
-  data:
-    redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6379}
-      database: 0
-      timeout: 3000ms
+  main:
+    web-application-type: reactive
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
+      - com.alibaba.cloud.nacos.endpoint.NacosConfigEndpointAutoConfiguration
+      - com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration
+      - com.alibaba.cloud.sentinel.endpoint.SentinelEndpointAutoConfiguration
   cloud:
     nacos:
       discovery:
@@ -63,3 +67,12 @@ campus:
     secret: ${CAMPUS_JWT_SECRET}
     access-expire: 7200000    # 2小时（毫秒）
     refresh-expire: 604800000 # 7天（毫秒）
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized

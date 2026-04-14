@@ -9,7 +9,6 @@ import org.springframework.stereotype.Component;
  * 对应 application.yml 中 campus.jwt.* 节点
  */
 @Data
-@Component
 @ConfigurationProperties(prefix = "campus.jwt")
 public class JwtProperties {
 

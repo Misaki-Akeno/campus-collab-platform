@@ -63,3 +63,6 @@ build/
 
 # Docker data volumes
 docker/volumes/
+
+# Local agent artifacts
+.codex

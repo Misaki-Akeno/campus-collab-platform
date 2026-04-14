@@ -31,6 +31,7 @@ tests {
     expect(data.accessToken).to.not.be.null();
     expect(data.refreshToken).to.not.be.null();
     bru.setEnvVar("access_token", data.accessToken);
+    bru.setEnvVar("refresh_token", data.refreshToken);
   });
 
   test("登录成功 - 返回 userInfo", function() {

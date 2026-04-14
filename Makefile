@@ -10,6 +10,8 @@ export
 # 配置
 GATEWAY_URL := http://localhost:9000
 WAIT_TIMEOUT := 120
+SERVICES := campus-gateway campus-user-service campus-club-service \
+            campus-seckill-service campus-im-service campus-file-service
 
 help:  ## 显示帮助
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -36,27 +38,24 @@ clean:  ## 清理构建产物
 # ============================================================
 
 test-all:  ## 全自动测试：单测 + HTTP 集成测试
-	@echo "▶ 阶段 1/5: 启动中间件..."
-	$(MAKE) dev
-	$(MAKE) wait-healthy
-
-	@echo "▶ 阶段 2/5: 编译服务..."
-	$(MAKE) build
-
-	@echo "▶ 阶段 3/5: 启动所有服务..."
-	$(MAKE) run-all
-	$(MAKE) wait-services
-
-	@echo "▶ 阶段 4/5: 运行单元测试..."
-	$(MAKE) test
-
-	@echo "▶ 阶段 5/5: 运行 HTTP 集成测试..."
-	$(MAKE) http-test-ci
-
-	@echo ""
-	@echo "✅ 全部测试完成，开始清理..."
-	$(MAKE) stop-all
-	@echo "✅ 环境已清理"
+	@trap '$(MAKE) stop-all' INT TERM EXIT; \
+	set -e; \
+	echo "▶ 阶段 1/5: 启动中间件..."; \
+	$(MAKE) dev; \
+	$(MAKE) wait-healthy; \
+	echo "▶ 阶段 2/5: 编译服务..."; \
+	$(MAKE) build; \
+	echo "▶ 阶段 3/5: 启动所有服务..."; \
+	$(MAKE) run-all; \
+	$(MAKE) wait-services; \
+	echo "▶ 阶段 4/5: 运行单元测试..."; \
+	$(MAKE) test; \
+	echo "▶ 阶段 5/5: 运行 HTTP 集成测试..."; \
+	$(MAKE) http-test-ci; \
+	echo ""; \
+	echo "✅ 全部测试完成，开始清理..."; \
+	$(MAKE) stop-all; \
+	echo "✅ 环境已清理"
 
 # ============================================================
 # 服务启停
@@ -64,21 +63,21 @@ test-all:  ## 全自动测试：单测 + HTTP 集成测试
 
 run-all:  ## 后台启动所有服务（需先 make build）
 	@[ -f .env ] || (echo "❌ 缺少 .env 文件，请复制 .env.example 并填入密钥" && exit 1)
-	@export CAMPUS_JWT_SECRET=$$(grep CAMPUS_JWT_SECRET .env | cut -d= -f2); \
-	for svc in gateway user club seckill im file; do \
-		echo "▶ 启动 $$svc-service..."; \
-		nohup java -jar campus-platform-backend/campus-$$svc-service/target/campus-$$svc-service-*.jar > logs/campus-$$svc-service.log 2>&1 & \
-		echo $$! > logs/campus-$$svc-service.pid; \
-	done
 	@mkdir -p logs
+	@export $$(grep -v '^#' .env | grep -v '^$$' | sed 's/[[:space:]]//g'); \
+	for svc in $(SERVICES); do \
+		echo "▶ 启动 $$svc..."; \
+		nohup java -jar campus-platform-backend/$$svc/target/$$svc-*.jar > logs/$$svc.log 2>&1 & \
+		echo $$! > logs/$$svc.pid; \
+	done
 	@echo "✅ 所有服务已在后台启动 (PID 记录在 logs/*.pid)"
 
 stop-all:  ## 停止所有服务和中间件
-	@-for svc in gateway user club seckill im file; do \
-		if [ -f logs/campus-$$svc-service.pid ]; then \
-			kill $$(cat logs/campus-$$svc-service.pid) 2>/dev/null; \
-			rm -f logs/campus-$$svc-service.pid; \
-			echo "🛑 已停止 $$svc-service"; \
+	@-for svc in $(SERVICES); do \
+		if [ -f logs/$$svc.pid ]; then \
+			kill $$(cat logs/$$svc.pid) 2>/dev/null || true; \
+			rm -f logs/$$svc.pid; \
+			echo "🛑 已停止 $$svc"; \
 		fi; \
 	done
 	@rm -rf logs
@@ -90,11 +89,27 @@ stop-all:  ## 停止所有服务和中间件
 
 http-test:  ## 交互模式运行 Bruno HTTP 测试
 	@command -v bru >/dev/null 2>&1 || { echo "❌ Bruno CLI 未安装，运行: npm install -g @usebruno/cli"; exit 1; }
-	bru run --env local ./tests/bruno
+	cd tests/bruno && ts=$$(date +%s) && bru run --env-file environments/local.json \
+		--env-var test_username=testuser_bruno_$$ts \
+		--env-var test_email=testuser_bruno_$$ts@campus.edu \
+		--env-var access_token= \
+		--env-var refresh_token= \
+		--env-var registered_user_id= \
+		--env-var registered_club_id= \
+		--env-var registered_activity_id= \
+		user-service club-service seckill-service im-service file-service
 
 http-test-ci:  ## CI 模式运行 Bruno HTTP 测试（JSON 输出）
 	@command -v bru >/dev/null 2>&1 || { echo "❌ Bruno CLI 未安装，运行: npm install -g @usebruno/cli"; exit 1; }
-	bru run --env local --json ./tests/bruno
+	cd tests/bruno && ts=$$(date +%s) && bru run --env-file environments/local.json \
+		--env-var test_username=testuser_bruno_$$ts \
+		--env-var test_email=testuser_bruno_$$ts@campus.edu \
+		--env-var access_token= \
+		--env-var refresh_token= \
+		--env-var registered_user_id= \
+		--env-var registered_club_id= \
+		--env-var registered_activity_id= \
+		user-service club-service seckill-service im-service file-service
 
 # ============================================================
 # 健康检查等待
@@ -107,11 +122,11 @@ wait-healthy:  ## 等待中间件全部健康
 	while true; do \
 		[ $$(date +%s) -gt $$deadline ] && { echo "❌ 中间件启动超时"; exit 1; }; \
 		all_healthy=true; \
-		mysqladmin ping -h 127.0.0.1 --silent 2>/dev/null || all_healthy=false; \
-		redis-cli ping 2>/dev/null | grep -q PONG || all_healthy=false; \
-		curl -sf http://localhost:9092 >/dev/null 2>&1 || true; \
+		(bash -c 'echo >/dev/tcp/127.0.0.1/3306' 2>/dev/null) || all_healthy=false; \
+		(bash -c 'echo >/dev/tcp/127.0.0.1/6379' 2>/dev/null) || all_healthy=false; \
+		(bash -c 'echo >/dev/tcp/127.0.0.1/9092' 2>/dev/null) || true; \
 		curl -sf http://localhost:8848/nacos/v1/console/health/liveness >/dev/null 2>&1 || all_healthy=false; \
-		curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1 || all_healthy=false; \
+		curl -sf http://localhost:9002/minio/health/live >/dev/null 2>&1 || all_healthy=false; \
 		if $$all_healthy; then \
 			echo "✅ 中间件全部就绪"; \
 			break; \
@@ -124,7 +139,7 @@ wait-services:  ## 等待所有 Java 服务就绪
 	@timeout=${WAIT_TIMEOUT}; \
 	start=$$(date +%s); \
 	deadline=$$((start + timeout)); \
-	ready=0; total=6; \
+	ready=0; total=$(words $(SERVICES)); \
 	while [ $$ready -lt $$total ]; do \
 		[ $$(date +%s) -gt $$deadline ] && { echo "❌ 服务启动超时 (就绪 $$ready/$$total)"; echo "📋 检查日志: ls logs/"; exit 1; }; \
 		ready=0; \

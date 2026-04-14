@@ -11,10 +11,8 @@ post {
 }
 
 body:json {
-  // 需要先执行登录获取 refreshToken，此测试用例依赖登录后的环境
-  // 运行时需确保 access_token 有效
   {
-    "refreshToken": "placeholder_replace_after_login"
+    "refreshToken": "{{refresh_token}}"
   }
 }
 
