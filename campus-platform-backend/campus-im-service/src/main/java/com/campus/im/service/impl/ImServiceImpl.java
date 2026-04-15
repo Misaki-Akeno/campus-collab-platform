@@ -1,6 +1,8 @@
 package com.campus.im.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.campus.common.exception.BizException;
+import com.campus.common.exception.ErrorCode;
 import com.campus.im.entity.ImConversation;
 import com.campus.im.entity.ImConversationMember;
 import com.campus.im.entity.ImMessage;
@@ -46,6 +48,7 @@ public class ImServiceImpl implements ImService {
     public List<ImMessage> syncMessages(Long userId, String lastMsgId, String conversationId) {
         // 若指定会话，直接拉取该会话 lastMsgId 之后的消息
         if (StringUtils.hasText(conversationId)) {
+            validateConversationMembership(userId, conversationId);
             LambdaQueryWrapper<ImMessage> wrapper = new LambdaQueryWrapper<ImMessage>()
                     .eq(ImMessage::getConversationId, conversationId)
                     .orderByAsc(ImMessage::getCreateTime)
@@ -75,5 +78,15 @@ public class ImServiceImpl implements ImService {
                         .in(ImMessage::getConversationId, convIds)
                         .orderByAsc(ImMessage::getCreateTime)
                         .last("LIMIT 500"));
+    }
+
+    private void validateConversationMembership(Long userId, String conversationId) {
+        Long count = memberMapper.selectCount(
+                new LambdaQueryWrapper<ImConversationMember>()
+                        .eq(ImConversationMember::getUserId, userId)
+                        .eq(ImConversationMember::getConversationId, conversationId));
+        if (count == null || count == 0) {
+            throw new BizException(ErrorCode.NOT_CONVERSATION_MEMBER);
+        }
     }
 }

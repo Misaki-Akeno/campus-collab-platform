@@ -24,16 +24,18 @@ public interface UploadService {
      * @param uploadId   MinIO multipart uploadId
      * @param partNumber 分片序号（从 1 开始）
      * @param etag       分片 ETag
+     * @param uploaderId 当前登录用户 ID
      */
-    void completeChunk(String uploadId, int partNumber, String etag);
+    void completeChunk(String uploadId, int partNumber, String etag, Long uploaderId);
 
     /**
      * 合并分片，完成上传
      * @param fileMd5  文件 MD5（fileId）
      * @param uploadId MinIO multipart uploadId
+     * @param uploaderId 当前登录用户 ID
      * @return 文件访问 URL
      */
-    String merge(String fileMd5, String uploadId);
+    String merge(String fileMd5, String uploadId, Long uploaderId);
 
     /** 根据 fileId（MD5）获取文件元数据 */
     FileMeta getFileMeta(String fileId);

@@ -113,7 +113,7 @@ CREATE TABLE `seckill_order` (
   `id`            bigint       NOT NULL                            COMMENT '订单ID',
   `user_id`       bigint       NOT NULL                            COMMENT '报名用户ID',
   `activity_id`   bigint       NOT NULL                            COMMENT '活动ID',
-  `status`        tinyint      NOT NULL DEFAULT '1'                COMMENT '1-成功 2-已取消/失败',
+  `status`        tinyint      NOT NULL DEFAULT '0'                COMMENT '0-处理中 1-成功 2-已取消/失败',
   `cancel_reason` varchar(256) DEFAULT NULL                        COMMENT '取消原因',
   `create_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

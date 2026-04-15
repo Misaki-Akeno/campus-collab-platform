@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 分片上传服务
@@ -70,26 +71,36 @@ public class UploadServiceImpl implements UploadService {
         fileMetaMapper.insert(fileMeta);
 
         log.info("全新上传初始化: fileId={}, fileName={}, chunkCount={}", fileMd5, fileName, chunkCount);
+        String uploadId = buildUploadId(fileMd5, uploaderId);
+        redisTemplate.opsForValue().set(buildUploadOwnerKey(uploadId), String.valueOf(uploaderId));
+
         // TODO: 调用 OssService 获取 MinIO 预签名 URL 列表
         result.put("type", "new");
-        result.put("uploadId", "TODO_MINIO_UPLOAD_ID");
+        result.put("uploadId", uploadId);
         result.put("presignedUrls", List.of());
         return result;
     }
 
     @Override
-    public void completeChunk(String uploadId, int partNumber, String etag) {
+    public void completeChunk(String uploadId, int partNumber, String etag, Long uploaderId) {
+        validateUploadOwner(uploadId, uploaderId);
         String chunkKey = String.format(RedisKeyConstant.FILE_CHUNK, uploadId);
         redisTemplate.opsForHash().put(chunkKey, String.valueOf(partNumber), etag);
         log.info("分片完成上报: uploadId={}, partNumber={}, etag={}", uploadId, partNumber, etag);
     }
 
     @Override
-    public String merge(String fileMd5, String uploadId) {
+    public String merge(String fileMd5, String uploadId, Long uploaderId) {
+        validateUploadOwner(uploadId, uploaderId);
+
         FileMeta fileMeta = fileMetaMapper.selectById(fileMd5);
         if (fileMeta == null) {
             throw new BizException(ErrorCode.UPLOAD_NOT_FOUND);
         }
+        if (!Objects.equals(fileMeta.getUploaderId(), uploaderId)) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该上传任务");
+        }
+
         // TODO: 调用 OssService 完成 MinIO completeMultipartUpload
         // 暂时更新状态为已完成
         FileMeta update = new FileMeta();
@@ -99,6 +110,7 @@ public class UploadServiceImpl implements UploadService {
 
         // 清理 Redis 分片记录
         redisTemplate.delete(String.format(RedisKeyConstant.FILE_CHUNK, uploadId));
+        redisTemplate.delete(buildUploadOwnerKey(uploadId));
         log.info("文件合并完成: fileId={}, uploadId={}", fileMd5, uploadId);
         return fileMeta.getFileUrl();
     }
@@ -110,5 +122,20 @@ public class UploadServiceImpl implements UploadService {
             throw new BizException(ErrorCode.FILE_NOT_FOUND);
         }
         return fileMeta;
+    }
+
+    private void validateUploadOwner(String uploadId, Long uploaderId) {
+        String uploadOwner = redisTemplate.opsForValue().get(buildUploadOwnerKey(uploadId));
+        if (uploadOwner == null || !uploadOwner.equals(String.valueOf(uploaderId))) {
+            throw new BizException(ErrorCode.FORBIDDEN, "无权操作该上传任务");
+        }
+    }
+
+    private String buildUploadOwnerKey(String uploadId) {
+        return String.format(RedisKeyConstant.FILE_UPLOAD_STATUS, uploadId);
+    }
+
+    private String buildUploadId(String fileMd5, Long uploaderId) {
+        return fileMd5 + ":" + uploaderId;
     }
 }

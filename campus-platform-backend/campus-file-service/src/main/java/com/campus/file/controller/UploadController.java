@@ -35,10 +35,11 @@ public class UploadController {
      */
     @PostMapping("/chunk/complete")
     public Result<Void> completeChunk(
+            @RequestHeader("X-User-Id") Long userId,
             @RequestParam @NotBlank String uploadId,
             @RequestParam @Positive int partNumber,
             @RequestParam @NotBlank String etag) {
-        uploadService.completeChunk(uploadId, partNumber, etag);
+        uploadService.completeChunk(uploadId, partNumber, etag, userId);
         return Result.ok();
     }
 
@@ -47,9 +48,10 @@ public class UploadController {
      */
     @PostMapping("/merge")
     public Result<Map<String, Object>> merge(
+            @RequestHeader("X-User-Id") Long userId,
             @RequestParam @NotBlank String fileMd5,
             @RequestParam @NotBlank String uploadId) {
-        String fileUrl = uploadService.merge(fileMd5, uploadId);
+        String fileUrl = uploadService.merge(fileMd5, uploadId, userId);
         return Result.ok(Map.of("fileUrl", fileUrl));
     }
 

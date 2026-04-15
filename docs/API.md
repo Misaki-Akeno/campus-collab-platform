@@ -372,7 +372,7 @@ Client → Gateway(Sentinel限流) → 防刷拦截 → Redis Lua(原子扣减) 
     "id": "987654321098765432",
     "userId": 1780001234567890,
     "activityId": "500001",
-    "status": 0,
+    "status": 1,
     "cancelReason": null,
     "createTime": "2026-04-12T15:00:01",
     "updateTime": "2026-04-12T15:00:01"
@@ -388,7 +388,7 @@ Client → Gateway(Sentinel限流) → 防刷拦截 → Redis Lua(原子扣减) 
 stateDiagram-v2
     [*] --> PROCESSING: 提交报名
     PROCESSING --> SUCCESS: Kafka消费成功
-    PROCESSING --> FAILED: 库存不足/异常
+    PROCESSING --> FAILED: 库存不足/重复报名/异常
     SUCCESS --> CANCELLED: 用户取消
     FAILED --> [*]
     CANCELLED --> [*]
