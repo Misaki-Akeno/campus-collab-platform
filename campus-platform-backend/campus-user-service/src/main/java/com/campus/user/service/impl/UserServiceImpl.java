@@ -38,7 +38,7 @@ public class UserServiceImpl implements UserService {
     private final StringRedisTemplate redisTemplate;
     private final ClubFeignClient clubFeignClient;
 
-    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder();
+    private static final BCryptPasswordEncoder PASSWORD_ENCODER = new BCryptPasswordEncoder(12);
 
     @Override
     public Long register(RegisterRequest request) {
@@ -149,8 +149,13 @@ public class UserServiceImpl implements UserService {
             } else {
                 resp.setClubs(Collections.emptyList());
             }
+        } catch (feign.FeignException e) {
+            log.warn("获取用户社团信息失败 (Feign 异常): userId={}, status={}, errorType={}",
+                    userId, e.status(), e.getClass().getSimpleName());
+            resp.setClubs(Collections.emptyList());
         } catch (Exception e) {
-            log.warn("获取用户社团信息失败: userId={}", userId, e);
+            log.warn("获取用户社团信息失败: userId={}, errorType={}",
+                    userId, e.getClass().getSimpleName());
             resp.setClubs(Collections.emptyList());
         }
         return resp;

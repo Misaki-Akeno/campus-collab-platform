@@ -68,11 +68,10 @@ public class SeckillServiceImpl implements SeckillService {
      * 秒杀报名核心流程（高并发）：
      * <ol>
      *   <li>活动状态 + 时间窗口前置校验</li>
-     *   <li>预创建 PROCESSING 订单（占位 orderId，便于客户端轮询）</li>
-     *   <li>Redis Lua 原子扣减（防重 + 库存，单 round-trip）</li>
-     *   <li>投递 Kafka，Consumer 异步更新订单为 SUCCESS / FAILED</li>
+     *   <li>Redis Lua 原子扣减（防重 + 库存优先，失败不产生脏订单）</li>
+     *   <li>事务内创建订单（SUCCESS 占位），保证 DB 一致性</li>
+     *   <li>投递 Kafka，Consumer 异步执行其他副作用（通知、统计等）</li>
      * </ol>
-     * 客户端收到 orderId 即代表请求已进入排队处理。
      *
      * @return 订单 orderId
      */
@@ -100,15 +99,7 @@ public class SeckillServiceImpl implements SeckillService {
         String stockKey  = String.format(RedisKeyConstant.SECKILL_STOCK,  activityId);
         String bookedKey = String.format(RedisKeyConstant.SECKILL_BOOKED, activityId);
 
-        // Step 1: 预创建订单（PROCESSING），为客户端提供可轮询的 orderId
-        SeckillOrder order = new SeckillOrder();
-        order.setUserId(userId);
-        order.setActivityId(activityId);
-        order.setStatus(0); // PROCESSING
-        orderMapper.insert(order);
-        Long orderId = order.getId();
-
-        // Step 2: Lua 原子扣减（防重 + 库存），失败则回滚订单为 FAILED
+        // Step 1: Lua 原子扣减前置（防重 + 库存），失败直接返回，不产生脏订单
         Long result = redisTemplate.execute(
                 deductScript,
                 List.of(stockKey, bookedKey),
@@ -116,26 +107,33 @@ public class SeckillServiceImpl implements SeckillService {
 
         if (result == null || result == -3L) {
             log.warn("秒杀库存未预热: activityId={}, userId={}", activityId, userId);
-            markOrderFailed(orderId, "活动库存未预热");
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
         if (result == -2L) {
-            markOrderFailed(orderId, "重复报名");
+            log.info("重复报名拦截: activityId={}, userId={}", activityId, userId);
             throw new BizException(ErrorCode.DUPLICATE_BOOK);
         }
         if (result == -1L) {
-            markOrderFailed(orderId, "库存不足");
+            log.info("库存不足: activityId={}, userId={}", activityId, userId);
             throw new BizException(ErrorCode.STOCK_EMPTY);
         }
 
-        // Step 3: 发 Kafka，Consumer 将订单从 PROCESSING 更新到终态
+        // Step 2: Lua 成功后创建订单，在事务中持久化
+        SeckillOrder order = new SeckillOrder();
+        order.setUserId(userId);
+        order.setActivityId(activityId);
+        order.setStatus(1); // SUCCESS（Lua 已保证原子扣减成功）
+        orderMapper.insert(order);
+        Long orderId = order.getId();
+
+        // Step 3: 发 Kafka，Consumer 做幂等落盘 + 通知等副作用操作
         String payload = String.format(
                 "{\"orderId\":%d,\"userId\":%d,\"activityId\":%d,\"remainStock\":%d}",
                 orderId, userId, activityId, result);
         kafkaTemplate.send(KafkaTopicConstant.TOPIC_SECKILL_ORDER,
                 String.valueOf(activityId), payload);
 
-        log.info("秒杀报名已进入处理队列: orderId={}, userId={}, activityId={}, remainStock={}",
+        log.info("秒杀报名成功: orderId={}, userId={}, activityId={}, remainStock={}",
                 orderId, userId, activityId, result);
         return String.valueOf(orderId);
     }
@@ -147,13 +145,5 @@ public class SeckillServiceImpl implements SeckillService {
             throw new BizException(ErrorCode.NOT_FOUND, "订单不存在");
         }
         return order;
-    }
-
-    private void markOrderFailed(Long orderId, String reason) {
-        SeckillOrder failed = new SeckillOrder();
-        failed.setId(orderId);
-        failed.setStatus(2);
-        failed.setCancelReason(reason);
-        orderMapper.updateById(failed);
     }
 }

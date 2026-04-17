@@ -1,5 +1,35 @@
 # Changelog
 
+## [Unreleased] — 2026-04-17 Phase 2 P0 完成：MinIO 集成 + 安全修复
+
+### 新增功能
+
+- **`campus-file-service` MinIO 分片上传全链路**：
+  - `OssService` 接口 + `OssServiceImpl` 实现：`initMultipartUpload` / `generatePresignedPutUrl` / `completeMultipartUpload` / `abortMultipartUpload`
+  - `OssConfig`（`CampusMinioClient` Bean）从 `application.yml` 读取 MinIO 端点/密钥
+  - `MinioProperties` 配置类（`@ConfigurationProperties(prefix = "minio")`）
+  - `initUpload` 全新上传路径返回真实预签名 PUT URL 列表，每个 URL 携带 `uploadId` 和 `partNumber` 查询参数
+  - `merge` 调用 MinIO `completeMultipartUpload` 合并分片，返回真实 `fileUrl`
+  - Redis 新增存储 `file:upload:object:{uploadId}` 和 `file:upload:minio:{uploadId}` 用于 merge 时还原对象键和 MinIO uploadId
+
+- **`campus-im-service` 单元测试**（新增 4 用例，总计 71 用例）：
+  - `ImServiceImplTest`：会话列表空集、合法会话消息同步、非法会话越权拦截、全量同步权限泄露防护
+
+### 安全修复（Critical）
+
+- **`campus-file-service` `UploadServiceImpl.merge()`**：增加 `uploadId ↔ fileMd5` 交叉校验，防止攻击者使用自己的 `uploadId` 合并他人的文件记录
+- **`campus-file-service` `UploadServiceImpl.merge()`**：合并前校验 Redis `file:chunk:{uploadId}` 分片数量是否等于预期的 `chunkCount`，防止分片缺失时被恶意标记为完成
+- **`campus-file-service` `UploadServiceImpl.merge()`**：增加状态机守卫，仅允许 `uploadStatus == UPLOADING` 的记录执行合并
+
+### 技术说明
+
+- MinIO Java SDK 8.x 的 `MinioClient` 不继承 `S3Base`，而是内部包装 `MinioAsyncClient`（`MinioAsyncClient extends S3Base`）。低层分片操作 API（`createMultipartUpload` / `completeMultipartUpload` / `abortMultipartUpload`）为 `S3Base` 的 `protected` 方法，通过 `MinioClient.asyncClient` 字段反射获取 `MinioAsyncClient` 实例后调用
+- `generatePresignedPutUrl` 基于 `MinioClient.getPresignedObjectUrl()` 生成基础预签名 URL，手动拼接 `uploadId` 和 `partNumber` 查询参数（Multipart Upload 的 S3 协议要求）
+- `MinioProperties` 启用 `@Validated` + `@NotBlank` 参数校验，配置缺失时启动即报错而非运行时 NPE
+- Lombok annotation processing 在新模块中不稳定，OssServiceImpl/UploadServiceImpl 改用显式构造函数和 SLF4J Logger
+
+---
+
 ## [Unreleased] — 2026-04-14 测试方案调整：移除集成测试，引入 Bruno HTTP 测试
 
 ### 测试基础设施变更

@@ -17,7 +17,7 @@ local userId    = ARGV[1]
 
 -- 检查活动是否已预热
 local stock = redis.call('GET', stockKey)
-if stock == false then
+if stock == nil then
     return -3
 end
 

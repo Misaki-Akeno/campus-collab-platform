@@ -1,6 +1,6 @@
 # 后端任务总览与规划（重写版）
 
-> 更新时间：2026-04-14  
+> 更新时间：2026-04-17  
 > 范围：`campus-platform-backend/` + `docs/API.md` 对齐情况  
 > 结论口径：以当前代码实现为准
 
@@ -28,8 +28,8 @@
 | `campus-user-service` | 功能较完整 | 注册/登录/刷新/me/登出/改密/内部用户查询已实现 |
 | `campus-club-service` | 功能较完整 | 社团主流程 + 公告 + 成员管理 + 内部成员查询已实现 |
 | `campus-seckill-service` | 核心链路可用 | Lua 原子扣减 + 报名 + 查询订单 + 活动筛选已实现；消费与管理能力不足 |
-| `campus-file-service` | 骨架可用 | 秒传/断点逻辑可用；MinIO 真正上传链路未完成 |
-| `campus-im-service` | REST 骨架可用 | 会话列表/离线同步已实现；WebSocket 主链路未做 |
+| `campus-file-service` | 可用 | 秒传/断点续传/全新上传全链路已通；MinIO 分片上传、预签名 URL、合并完成全部落地；merge 增加 MD5 绑定/分片完整性/状态机校验 |
+| `campus-im-service` | REST 可用 | 会话列表/离线同步已实现；同步越权修复（已增加 membership 校验 + 回归测试）；WebSocket 主链路未做 |
 | `ai-bot` | 未开始 | 目录存在但未形成可用服务 |
 
 ## 2.2 API 对齐结论（关键项）
@@ -40,8 +40,8 @@
 | 社团公告 `POST/GET /clubs/{clubId}/announcements` | 已对齐 | controller/service/mapper 均有实现 |
 | 秒杀活动列表 `clubId/status` 过滤 | 已对齐 | `listActivities` 已支持过滤参数 |
 | UserFeign 路径与 user-service 内部接口 | 已对齐 | `/api/v1/users/{userId}/basic` 一致 |
-| 文件上传 `uploadId/presignedUrls/fileUrl` | 未对齐 | 仍为占位返回，依赖 MinIO 集成 |
-| 秒杀“排队 + PROCESSING 状态机” | 已对齐 | 代码已改为 `PROCESSING` + Kafka Consumer 更新终态 |
+| 文件上传 `uploadId/presignedUrls/fileUrl` | 已对齐 | MinIO 分片上传链路已落地，`presignedUrls` 返回预签名 PUT URL 列表，`merge` 返回真实 `fileUrl` |
+| 秒杀"排队 + PROCESSING 状态机" | 已对齐 | 代码已改为 `PROCESSING` + Kafka Consumer 更新终态 |
 | 网关 Sentinel 三层限流 | 未对齐 | 依赖存在，规则与拦截链未落地 |
 
 ---
@@ -52,14 +52,13 @@
 
 ## 3.1 P0（高优先级）
 
-1. IM 消息同步存在越权风险（指定会话时未校验会话成员关系）  
-   影响：用户可通过构造 `conversationId` 拉取不属于自己的消息。
+> ✅ Phase 2 P0 全部完成（2026-04-17）
 
-2. 文件上传合并接口可被伪造完成（未校验 `uploadId` 与 `fileMd5` 归属关系）  
-   影响：可篡改上传流程状态，导致元数据与真实文件不一致。
-
-3. 文件上传核心链路未完成（MinIO Multipart 未接入）  
-   影响：`presignedUrls` 空、`uploadId` 占位、`fileUrl` 不可靠，客户端无法真正直传闭环。
+| ID | 项目 | 状态 | 说明 |
+|---|---|---|---|
+| P0-1 | IM 消息同步越权 | ✅ 已修复 | `syncMessages(conversationId)` 增加 membership 校验，新增 4 个回归测试 |
+| P0-2 | 文件上传合并归属校验 | ✅ 已修复 | `uploadId ↔ fileMd5` 交叉绑定校验 + 分片完整性检查 + 状态机流转校验 |
+| P0-3 | MinIO 分片上传链路 | ✅ 已修复 | OssService 完整实现（init/presign/complete/abort），`initUpload` 返回真实预签名 URL，`merge` 返回真实 `fileUrl` |
 
 ## 3.2 P1（中优先级）
 
@@ -74,8 +73,7 @@
 1. 单测在当前环境不可通过（Mockito inline mock maker 依赖 attach 失败）  
    影响：`mvn test` 失败，不利于 CI 稳定。
 
-2. 文档陈旧风险（历史评估与现状偏差）  
-   影响：开发优先级被误导。
+2. ~~文档陈旧风险（历史评估与现状偏差）~~ — ✅ 已闭环
 
 ---
 
@@ -83,30 +81,32 @@
 
 ## Phase 2（近期：补齐可上线能力）
 
-### P0
+> ✅ **Phase 2 P0 全部完成**（2026-04-17）
 
-1. file-service 完成 MinIO 集成
-- 实现 `OssService`（init multipart / presign / complete）
-- `initUpload` 返回真实 `uploadId` 与 `presignedUrls`
-- `merge` 返回真实 `fileUrl` 并做完整一致性校验
+### P0 ✅ 已完成
 
-2. 修复 IM 同步越权
-- `syncMessages(conversationId)` 增加 membership 校验
-- 增加安全回归测试（合法会话/非法会话）
+1. ~~file-service 完成 MinIO 集成~~
+   - ✅ 实现 `OssService`（init multipart / presign / complete / abort）
+   - ✅ `initUpload` 返回真实 `uploadId` 与 `presignedUrls`（MinIO 预签名 PUT URL）
+   - ✅ `merge` 返回真实 `fileUrl` 并做完整一致性校验
 
-3. 修复上传合并归属校验
-- 绑定 `uploadId ↔ fileMd5 ↔ uploaderId`
-- 校验分片数量、etag 完整性、状态机流转合法性
+2. ~~修复 IM 同步越权~~
+   - ✅ `syncMessages(conversationId)` 增加 membership 校验
+   - ✅ 增加安全回归测试（合法会话/非法会话）
+
+3. ~~修复上传合并归属校验~~
+   - ✅ 绑定 `uploadId ↔ fileMd5 ↔ uploaderId`
+   - ✅ 校验分片数量、etag 完整性、状态机流转合法性
 
 ### P1
 
 1. Gateway 防刷
-- 落地 Sentinel 规则
-- 增加用户/IP 维度滑窗控制
+   - 落地 Sentinel 规则
+   - 增加用户/IP 维度滑窗控制
 
 2. 可观测性最小闭环
-- traceId 注入与透传
-- Prometheus 基础指标暴露
+   - traceId 注入与透传
+   - Prometheus 基础指标暴露
 
 ## Phase 3（IM 实时能力）
 

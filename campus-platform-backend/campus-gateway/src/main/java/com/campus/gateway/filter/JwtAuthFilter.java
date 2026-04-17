@@ -100,7 +100,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         } catch (Exception e) {
-            log.warn("Token校验失败: {} - {}", path, e.getMessage());
+            log.warn("Token校验失败: path={}, errorType={}", path, e.getClass().getSimpleName());
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }

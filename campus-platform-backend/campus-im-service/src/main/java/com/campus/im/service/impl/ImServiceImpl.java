@@ -52,12 +52,10 @@ public class ImServiceImpl implements ImService {
             LambdaQueryWrapper<ImMessage> wrapper = new LambdaQueryWrapper<ImMessage>()
                     .eq(ImMessage::getConversationId, conversationId)
                     .orderByAsc(ImMessage::getCreateTime)
+                    .orderByAsc(ImMessage::getMsgId)
                     .last("LIMIT 100");
             if (StringUtils.hasText(lastMsgId)) {
-                ImMessage lastMsg = messageMapper.selectById(lastMsgId);
-                if (lastMsg != null) {
-                    wrapper.gt(ImMessage::getCreateTime, lastMsg.getCreateTime());
-                }
+                wrapper.gt(ImMessage::getMsgId, lastMsgId);
             }
             return messageMapper.selectList(wrapper);
         }
@@ -72,11 +70,12 @@ public class ImServiceImpl implements ImService {
         List<String> convIds = conversations.stream()
                 .map(ImConversation::getConversationId)
                 .collect(Collectors.toList());
-        // 按会话批量拉取，每会话取最近 50 条由业务层做截断（此处取全量，Phase 3 换 Kafka offset 方案）
+        // 按会话批量拉取，使用 createTime + msgId 双排序保证稳定性
         return messageMapper.selectList(
                 new LambdaQueryWrapper<ImMessage>()
                         .in(ImMessage::getConversationId, convIds)
                         .orderByAsc(ImMessage::getCreateTime)
+                        .orderByAsc(ImMessage::getMsgId)
                         .last("LIMIT 500"));
     }
 
