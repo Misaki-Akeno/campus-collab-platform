@@ -1,0 +1,52 @@
+name: Release On Tag
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build backend artifacts
+        run: |
+          cd campus-platform-backend
+          mvn -B -ntp clean package -DskipTests
+
+      - name: Prepare release bundle
+        run: |
+          mkdir -p dist/backend-jars
+          find campus-platform-backend -path '*/target/*.jar' -name 'campus-*.jar' ! -name 'original-*.jar' -exec cp {} dist/backend-jars/ \;
+          cp docker/docker-compose.yml dist/docker-compose.yml
+          {
+            echo "tag=${GITHUB_REF_NAME}"
+            echo "commit=${GITHUB_SHA}"
+            echo "created_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "note=Pre-CD release bundle with backend jars and compose template"
+          } > dist/release-manifest.txt
+          tar -czf release-bundle-${GITHUB_REF_NAME}.tar.gz dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release-bundle-${{ github.ref_name }}.tar.gz
+            dist/release-manifest.txt

@@ -19,6 +19,10 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <!-- 鉴权由 Gateway 统一处理，业务服务仅需 BCrypt -->
         <dependency>
             <groupId>org.springframework.security</groupId>

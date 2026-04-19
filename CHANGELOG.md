@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased] — 2026-04-19 CI/CD 流水线重构：质量门拆分 + Tag 自动 Release
+
+### CI/CD 变更
+
+- **`.github/workflows/backend-quality-gate.yml`**：新增后端独立质量门，覆盖构建、SpotBugs 静态分析、单元测试、Bruno HTTP 集成测试
+- **`.github/workflows/backend-quality-gate.yml`**：中间件等待阶段统一改为读取容器健康状态（MySQL/Redis/Nacos/MinIO），不依赖 Runner 预装 `redis-cli` 或 `mysqladmin`
+- **`.github/workflows/frontend-quality-gate.yml`**：新增前端独立质量门，单独执行依赖安装与 ESLint 校验
+- **`.github/workflows/release-on-tag.yml`**：新增 Tag 自动触发 Release（`v*`），自动构建后端 JAR，打包 release bundle 并发布 GitHub Release 资产，为后续接入 CD 提前准备制品输出规范
+
 ## [Unreleased] — 2026-04-17 Phase 2 P0 完成：MinIO 集成 + 安全修复
 
 ### 新增功能
