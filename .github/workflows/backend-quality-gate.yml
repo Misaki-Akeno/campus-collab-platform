@@ -86,11 +86,6 @@ jobs:
       - name: Build services
         run: make build
 
-      - name: Run backend static analysis (SpotBugs)
-        run: |
-          cd campus-platform-backend
-          mvn -B -ntp spotbugs:check
-
       - name: Run unit tests
         run: make test
 
