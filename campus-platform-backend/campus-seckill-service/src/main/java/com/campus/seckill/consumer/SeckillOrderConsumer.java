@@ -27,7 +27,7 @@ public class SeckillOrderConsumer {
         try {
             JsonNode payload = objectMapper.readTree(message);
             JsonNode orderIdNode = payload.get("orderId");
-            Long orderId = orderIdNode == null ? null : orderIdNode.asLong();
+            Long orderId = (orderIdNode == null || orderIdNode.isNull()) ? null : orderIdNode.asLong();
             if (orderId == null) {
                 log.warn("秒杀订单消息缺少 orderId: {}", message);
                 return;

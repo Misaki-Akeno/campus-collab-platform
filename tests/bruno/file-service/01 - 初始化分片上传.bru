@@ -5,7 +5,7 @@ meta {
 }
 
 post {
-  url: {{gateway_url}}/file/api/v1/upload/init?fileName=test.txt&fileSize=100&fileMd5=d41d8cd98f00b204e9800998ecf8427e
+  url: {{gateway_url}}/file/api/v1/upload/init?fileName=test.txt&fileSize=100&fileMd5=d41d8cd98f00b204e9800998ecf8427e&chunkCount=1
   body: none
   auth: bearer
 }
@@ -23,8 +23,14 @@ tests {
     expect(res.getBody().code).to.equal(200);
   });
 
-  test("初始化上传 - 返回上传类型", function() {
+  test("初始化上传 - 返回上传类型并保存变量", function() {
     const data = res.getBody().data;
     expect(data.type).to.be.oneOf(["new", "instant", "resume"]);
+    // 保存 fileMd5 供后续查询使用
+    bru.setEnvVar("registered_file_md5", "d41d8cd98f00b204e9800998ecf8427e");
+    // new/resume 场景保存 uploadId 供上报分片使用
+    if (data.uploadId) {
+      bru.setEnvVar("registered_upload_id", data.uploadId);
+    }
   });
 }

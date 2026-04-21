@@ -1,0 +1,30 @@
+meta {
+  name: 02 - 上报分片完成
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{gateway_url}}/file/api/v1/upload/chunk/complete?uploadId={{registered_upload_id}}&partNumber=1&etag=fake-etag-for-api-test
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("上报分片完成 - HTTP 200", function() {
+    // 秒传场景下 registered_upload_id 为空，URL 中 uploadId 为空字符串会触发 FORBIDDEN；跳过
+    if (!bru.getEnvVar("registered_upload_id")) { return; }
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("上报分片完成 - 返回业务码", function() {
+    if (!bru.getEnvVar("registered_upload_id")) { return; }
+    const body = res.getBody();
+    // 200 = 上报成功；403 = owner 不匹配（不应出现）
+    expect(body.code).to.equal(200);
+  });
+}

@@ -1,0 +1,35 @@
+meta {
+  name: 03 - 查询订单
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{gateway_url}}/seckill/api/v1/orders/{{registered_order_id}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("查询订单 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("查询订单 - 返回业务码", function() {
+    const body = res.getBody();
+    // 报名成功时有订单；若报名因库存/重复/活动未开始而跳过则 orderId 为空，直接通过
+    if (!bru.getEnvVar("registered_order_id")) {
+      return;
+    }
+    // 200 = 查询成功，404 = 订单不存在（仍在异步写入中）
+    expect(body.code).to.be.oneOf([200, 404]);
+    if (body.code === 200) {
+      expect(body.data.userId).to.not.be.null();
+      // 订单状态：0=处理中 / 1=成功 / 2=失败
+      expect(body.data.status).to.be.oneOf([0, 1, 2]);
+    }
+  });
+}

@@ -20,7 +20,12 @@ tests {
 
   test("活动列表 - 返回分页结构", function() {
     const data = res.getBody().data;
-    expect(data.total).to.not.be.null();
-    expect(data.records).to.be.an.array();
+    expect(data).to.be.an('object');
+    expect(data.total).to.be.a('number');
+    expect(data.records).to.be.an('array');
+    // 保存第一条活动 ID，供后续报名测试使用
+    if (data.records && data.records.length > 0) {
+      bru.setEnvVar("registered_activity_id", String(data.records[0].id));
+    }
   });
 }

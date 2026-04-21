@@ -63,6 +63,27 @@
       "enabled": true,
       "secret": false,
       "type": "text"
+    },
+    {
+      "name": "registered_order_id",
+      "value": "",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    },
+    {
+      "name": "registered_upload_id",
+      "value": "",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
+    },
+    {
+      "name": "registered_file_md5",
+      "value": "",
+      "enabled": true,
+      "secret": false,
+      "type": "text"
     }
   ]
 }

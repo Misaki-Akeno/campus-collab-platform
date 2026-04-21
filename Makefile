@@ -97,10 +97,14 @@ http-test:  ## 交互模式运行 Bruno HTTP 测试
 		--env-var registered_user_id= \
 		--env-var registered_club_id= \
 		--env-var registered_activity_id= \
+		--env-var registered_order_id= \
+		--env-var registered_upload_id= \
+		--env-var registered_file_md5= \
 		user-service club-service seckill-service im-service file-service
 
-http-test-ci:  ## CI 模式运行 Bruno HTTP 测试（JSON 输出）
+http-test-ci:  ## CI 模式运行 Bruno HTTP 测试（JSON 输出 + 遇错即停）
 	@command -v bru >/dev/null 2>&1 || { echo "❌ Bruno CLI 未安装，运行: npm install -g @usebruno/cli"; exit 1; }
+	@mkdir -p test-results
 	cd tests/bruno && ts=$$(date +%s) && bru run --env-file environments/local.json \
 		--env-var test_username=testuser_bruno_$$ts \
 		--env-var test_email=testuser_bruno_$$ts@campus.edu \
@@ -109,6 +113,10 @@ http-test-ci:  ## CI 模式运行 Bruno HTTP 测试（JSON 输出）
 		--env-var registered_user_id= \
 		--env-var registered_club_id= \
 		--env-var registered_activity_id= \
+		--env-var registered_order_id= \
+		--env-var registered_upload_id= \
+		--env-var registered_file_md5= \
+		--reporter json --output ../../test-results/bruno.json \
 		user-service club-service seckill-service im-service file-service
 
 # ============================================================

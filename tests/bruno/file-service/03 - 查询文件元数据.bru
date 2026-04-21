@@ -1,0 +1,32 @@
+meta {
+  name: 03 - 查询文件元数据
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{gateway_url}}/file/api/v1/upload/{{registered_file_md5}}
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+tests {
+  test("查询文件元数据 - HTTP 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("查询文件元数据 - 返回业务码与元数据字段", function() {
+    const body = res.getBody();
+    // 200 = 查到记录（UPLOADING 或 COMPLETED 均可）
+    // 1041 = FILE_NOT_FOUND（极少情况：init 写 DB 失败，不应出现）
+    expect(body.code).to.be.oneOf([200, 1041]);
+    if (body.code === 200) {
+      expect(body.data.fileId).to.equal(bru.getEnvVar("registered_file_md5"));
+      expect(body.data.uploadStatus).to.be.oneOf([0, 1]);  // 0=UPLOADING / 1=COMPLETED
+      expect(body.data.fileSize).to.equal(100);
+    }
+  });
+}
