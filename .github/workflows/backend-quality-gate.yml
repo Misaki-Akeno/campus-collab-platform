@@ -52,18 +52,7 @@ jobs:
         run: make dev
 
       - name: Wait for middleware
-        run: |
-          echo "Waiting for MySQL..."
-          timeout 120 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" campus-mysql)" = "healthy" ]; do sleep 2; done'
-          echo "Waiting for Redis..."
-          timeout 120 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" campus-redis)" = "healthy" ]; do sleep 2; done'
-          echo "Waiting for Nacos..."
-          timeout 120 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" campus-nacos)" = "healthy" ]; do sleep 2; done'
-          echo "Waiting for MinIO..."
-          timeout 120 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" campus-minio)" = "healthy" ]; do sleep 2; done'
-          echo "Waiting for Kafka..."
-          timeout 120 bash -c 'until [ "$(docker inspect -f "{{.State.Health.Status}}" campus-kafka)" = "healthy" ]; do sleep 2; done'
-          echo "All middleware ready"
+        run: make wait-healthy WAIT_TIMEOUT=180
 
       - name: Create .env
         run: |
@@ -93,21 +82,10 @@ jobs:
         run: make run-all
 
       - name: Wait for services
-        run: |
-          echo "Waiting for services to start..."
-          for port in 9000 8081 8082 8083 8084 8085; do
-            echo -n "  Port $port: "
-            timeout 120 bash -c 'until curl -sf http://localhost:$port/actuator/health >/dev/null 2>&1; do sleep 3; done'
-            echo "ready"
-          done
-          echo "All services ready"
+        run: make wait-services WAIT_TIMEOUT=180
 
       - name: Run HTTP integration tests (Bruno)
         run: make http-test-ci
-
-      - name: Cleanup
-        if: always()
-        run: make stop-all
 
       - name: Upload service logs
         if: failure()
@@ -116,3 +94,7 @@ jobs:
           name: service-logs
           path: logs/
           retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: make stop-all

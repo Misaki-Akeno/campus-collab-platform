@@ -77,6 +77,36 @@ campus-club-service/ # Service(29) + Controller(6) = 35 用例
 | `feature/{module}-{desc}` | 功能分支，如 `feature/seckill-lua-stock` |
 | `hotfix/{desc}` | 紧急修复，从 main 拉出 |
 
+## GitHub Actions / CI
+
+**远程仓库**: https://github.com/Misaki-Akeno/campus-collab-platform
+**本地 gh CLI**: 已安装（v2.91.0），已完成 auth login
+
+| 命令 | 说明 |
+|------|------|
+| `gh run list --repo Misaki-Akeno/campus-collab-platform` | 查看最近 Actions 记录 |
+| `gh run view <run-id> --repo Misaki-Akeno/campus-collab-platform` | 查看 run 详情 |
+| `gh run view <run-id> --repo Misaki-Akeno/campus-collab-platform --log-failed` | 查看失败日志 |
+
+**workflow 文件**: `.github/workflows/backend-quality-gate.yml`
+
+已知问题：`Wait for services` 步骤（等待 6 个 Java 服务的 `/actuator/health`）超时（exit 124），
+根因见下方 "CI 已知问题" 节。
+
+## CI 已知问题
+
+**问题**: `Wait for services` 步骤 `timeout 120` 超时（exit 124），6 个服务（端口 9000/8081–8085）均未在 120s 内就绪。
+
+**可能根因**（按优先级）：
+
+1. **Kafka 健康检查占用时间过长** — `start_period: 30s` + `retries: 10` × `interval: 15s` = 最长 180s 才 healthy，而 workflow 中 `Wait for middleware` 每个容器超时仅 120s，Kafka 可能尚未 healthy 就进入下一步，导致依赖 Kafka 的 seckill/im 服务启动失败。
+
+2. **workflow 未调用 `make wait-healthy`** — Makefile 里有完善的 `wait-healthy` target，但 workflow 的 `Wait for middleware` 步骤是手写的 `docker inspect` 轮询，各自 120s 串行执行，总等待时间可能不足。
+
+3. **Java 服务 6 个串行冷启动 + Spring Boot 初始化** — CI runner 资源有限，120s 对 6 个服务同时冷启动可能不够。
+
+4. **`run-all` 用 `nohup java -jar` 启动后 `stop-all` 会删除 `logs/` 目录** — 失败时 artifact 上传找不到日志（CI 日志显示 `No files were found with the provided path: logs/`）。
+
 ## 变更记录
 
 修改任何功能后在 [CHANGELOG.md](./CHANGELOG.md) 中追加记录。

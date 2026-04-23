@@ -9,7 +9,7 @@ export
 
 # 配置
 GATEWAY_URL := http://localhost:9000
-WAIT_TIMEOUT := 120
+WAIT_TIMEOUT := 180
 SERVICES := campus-gateway campus-user-service campus-club-service \
             campus-seckill-service campus-im-service campus-file-service
 
@@ -80,7 +80,6 @@ stop-all:  ## 停止所有服务和中间件
 			echo "🛑 已停止 $$svc"; \
 		fi; \
 	done
-	@rm -rf logs
 	$(MAKE) stop
 
 # ============================================================
@@ -132,7 +131,7 @@ wait-healthy:  ## 等待中间件全部健康
 		all_healthy=true; \
 		(bash -c 'echo >/dev/tcp/127.0.0.1/3306' 2>/dev/null) || all_healthy=false; \
 		(bash -c 'echo >/dev/tcp/127.0.0.1/6379' 2>/dev/null) || all_healthy=false; \
-		(bash -c 'echo >/dev/tcp/127.0.0.1/9092' 2>/dev/null) || true; \
+		(bash -c 'echo >/dev/tcp/127.0.0.1/9092' 2>/dev/null) || all_healthy=false; \
 		curl -sf http://localhost:8848/nacos/v1/console/health/liveness >/dev/null 2>&1 || all_healthy=false; \
 		curl -sf http://localhost:9002/minio/health/live >/dev/null 2>&1 || all_healthy=false; \
 		if $$all_healthy; then \

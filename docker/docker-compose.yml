@@ -56,10 +56,10 @@ services:
       - kafka-data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
-      interval: 15s
+      interval: 10s
       timeout: 10s
-      retries: 10
-      start_period: 30s
+      retries: 8
+      start_period: 15s
 
   nacos:
     image: ${DOCKER_REGISTRY_PREFIX}nacos/nacos-server:v2.5.2

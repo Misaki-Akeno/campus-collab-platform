@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased] — 2026-04-23 CI 修复：Wait for services 超时
+
+### Bug Fix
+
+- **`docker/docker-compose.yml`**：Kafka healthcheck `start_period` 从 30s 缩短为 15s，`interval` 从 15s 缩短为 10s，`retries` 从 10 降为 8，确保在 120s 内完成健康检查
+- **`Makefile`**：`WAIT_TIMEOUT` 从 120s 提高至 180s；`wait-healthy` 中 Kafka 端口检测从 `|| true`（忽略）改为 `|| all_healthy=false`（纳入健康门控）；`stop-all` 移除 `rm -rf logs` 以保留失败日志
+- **`.github/workflows/backend-quality-gate.yml`**：`Wait for middleware` / `Wait for services` 改用 `make wait-healthy` / `make wait-services` 复用 Makefile 逻辑，超时统一设为 180s；`Upload service logs` 步骤移至 `Cleanup` 之前，避免 `stop-all` 清理后日志丢失
+
 ## [Unreleased] — 2026-04-19 CI/CD 流水线重构：质量门拆分 + Tag 自动 Release
 
 ### CI/CD 变更
