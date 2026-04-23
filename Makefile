@@ -9,7 +9,7 @@ export
 
 # 配置
 GATEWAY_URL := http://localhost:9000
-WAIT_TIMEOUT := 180
+WAIT_TIMEOUT := 240
 SERVICES := campus-gateway campus-user-service campus-club-service \
             campus-seckill-service campus-im-service campus-file-service
 

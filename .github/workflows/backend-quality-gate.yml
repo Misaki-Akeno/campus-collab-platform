@@ -52,7 +52,7 @@ jobs:
         run: make dev
 
       - name: Wait for middleware
-        run: make wait-healthy WAIT_TIMEOUT=180
+        run: make wait-healthy WAIT_TIMEOUT=240
 
       - name: Create .env
         run: |
@@ -82,7 +82,7 @@ jobs:
         run: make run-all
 
       - name: Wait for services
-        run: make wait-services WAIT_TIMEOUT=180
+        run: make wait-services WAIT_TIMEOUT=240
 
       - name: Run HTTP integration tests (Bruno)
         run: make http-test-ci

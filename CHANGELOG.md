@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased] — 2026-04-23 CI 修复：Wait for services 超时（第二次）
+
+### Bug Fix
+
+- **所有服务 `application.yml`**：Hikari `minimum-idle` 5→1，`maximum-pool-size` 20→10，减少启动时并发连接建立数量，加快 Spring Boot 冷启动
+- **`Makefile` / workflow**：`WAIT_TIMEOUT` 180→240s 保底
+
 ## [Unreleased] — 2026-04-23 CI 修复：Wait for services 超时
 
 ### Bug Fix
