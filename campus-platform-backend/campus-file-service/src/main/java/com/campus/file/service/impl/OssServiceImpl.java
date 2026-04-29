@@ -37,6 +37,21 @@ public class OssServiceImpl implements OssService {
         this.asyncClient = asyncField.get(minioClient);
     }
 
+    /** 沿继承链查找方法（含 protected），找到后设置可访问。 */
+    private java.lang.reflect.Method findMethod(String name, Class<?>... paramTypes) throws NoSuchMethodException {
+        Class<?> cls = asyncClient.getClass();
+        while (cls != null) {
+            try {
+                java.lang.reflect.Method m = cls.getDeclaredMethod(name, paramTypes);
+                m.setAccessible(true);
+                return m;
+            } catch (NoSuchMethodException ignore) {
+                cls = cls.getSuperclass();
+            }
+        }
+        throw new NoSuchMethodException(name);
+    }
+
     @Override
     public String initMultipartUpload(String bucket, String objectKey) {
         try {
@@ -46,7 +61,7 @@ public class OssServiceImpl implements OssService {
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
-            java.lang.reflect.Method method = asyncClient.getClass().getMethod(
+            java.lang.reflect.Method method = findMethod(
                     "createMultipartUpload",
                     String.class, String.class, String.class, Multimap.class, Multimap.class);
             CreateMultipartUploadResponse response = (CreateMultipartUploadResponse) method.invoke(
@@ -104,7 +119,7 @@ public class OssServiceImpl implements OssService {
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
-            java.lang.reflect.Method method = asyncClient.getClass().getMethod(
+            java.lang.reflect.Method method = findMethod(
                     "completeMultipartUpload",
                     String.class, String.class, String.class, String.class,
                     Part[].class, Multimap.class, Multimap.class);
@@ -128,7 +143,7 @@ public class OssServiceImpl implements OssService {
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
-            java.lang.reflect.Method method = asyncClient.getClass().getMethod(
+            java.lang.reflect.Method method = findMethod(
                     "abortMultipartUpload",
                     String.class, String.class, String.class, String.class,
                     Multimap.class, Multimap.class);

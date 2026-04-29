@@ -56,9 +56,9 @@ jobs:
 
       - name: Create .env
         run: |
-          cat > .env << 'EOF'
+          cat > .env <<'EOF'
           DOCKER_REGISTRY_PREFIX=
-          CAMPUS_JWT_SECRET=ci-test-jwt-secret-key-that-is-long-enough-for-hs256-signing-123456
+          CAMPUS_JWT_SECRET=Y2FtcHVzLWNvbGxhYi1wbGF0Zm9ybS1qd3Qta2V5ISE=
           REDIS_HOST=127.0.0.1
           REDIS_PORT=6379
           NACOS_SERVER_ADDR=127.0.0.1:8848
@@ -71,6 +71,7 @@ jobs:
           MYSQL_PASSWORD=root123456
           MYSQL_DATABASE=campus_platform
           EOF
+          sed -i 's/^[[:space:]]*//' .env
 
       - name: Build services
         run: make build

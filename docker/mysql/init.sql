@@ -53,6 +53,7 @@ CREATE TABLE `club_member` (
   `user_id`     bigint       NOT NULL                              COMMENT '用户ID',
   `club_id`     bigint       NOT NULL                              COMMENT '社团ID',
   `member_role` tinyint      NOT NULL DEFAULT '0'                  COMMENT '0-成员 1-副社长 2-社长',
+  `status`      tinyint      NOT NULL DEFAULT '1'                  COMMENT '0-待审核 1-已通过 2-已拒绝',
   `join_time`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP    COMMENT '加入时间',
   `create_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

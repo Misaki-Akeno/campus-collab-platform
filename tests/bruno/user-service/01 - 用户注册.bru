@@ -30,7 +30,7 @@ tests {
 
   test("注册成功 - 返回 userId", function() {
     const data = res.getBody().data;
-    expect(data.userId).to.not.be.null();
+    expect(data.userId).to.not.be.null;
     bru.setEnvVar("registered_user_id", data.userId);
   });
 }

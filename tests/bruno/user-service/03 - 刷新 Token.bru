@@ -23,7 +23,7 @@ tests {
 
   test("刷新成功 - 返回新 accessToken", function() {
     const data = res.getBody().data;
-    expect(data.accessToken).to.not.be.null();
+    expect(data.accessToken).to.not.be.null;
     bru.setEnvVar("access_token", data.accessToken);
   });
 }

@@ -27,7 +27,7 @@ tests {
     // 200 = 查询成功，404 = 订单不存在（仍在异步写入中）
     expect(body.code).to.be.oneOf([200, 404]);
     if (body.code === 200) {
-      expect(body.data.userId).to.not.be.null();
+      expect(body.data.userId).to.not.be.null;
       // 订单状态：0=处理中 / 1=成功 / 2=失败
       expect(body.data.status).to.be.oneOf([0, 1, 2]);
     }

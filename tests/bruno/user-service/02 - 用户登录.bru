@@ -28,15 +28,15 @@ tests {
 
   test("登录成功 - 返回 accessToken", function() {
     const data = res.getBody().data;
-    expect(data.accessToken).to.not.be.null();
-    expect(data.refreshToken).to.not.be.null();
+    expect(data.accessToken).to.not.be.null;
+    expect(data.refreshToken).to.not.be.null;
     bru.setEnvVar("access_token", data.accessToken);
     bru.setEnvVar("refresh_token", data.refreshToken);
   });
 
   test("登录成功 - 返回 userInfo", function() {
     const data = res.getBody().data;
-    expect(data.userInfo).to.not.be.null();
+    expect(data.userInfo).to.not.be.null;
     expect(data.userInfo.username).to.equal(bru.getEnvVar("test_username"));
   });
 }

@@ -5,13 +5,21 @@ meta {
 }
 
 post {
-  url: {{gateway_url}}/club/api/v1/clubs?name=测试社团&description=自动化测试创建&category=学术
-  body: none
+  url: {{gateway_url}}/club/api/v1/clubs
+  body: json
   auth: bearer
 }
 
 auth:bearer {
   token: {{access_token}}
+}
+
+body:json {
+  {
+    "name": "test-club",
+    "description": "auto-test",
+    "category": "academic"
+  }
 }
 
 tests {
@@ -25,7 +33,7 @@ tests {
 
   test("创建社团 - 返回 clubId", function() {
     const data = res.getBody().data;
-    expect(data.clubId).to.not.be.null();
+    expect(data.clubId).to.not.be.null;
     bru.setEnvVar("registered_club_id", data.clubId);
   });
 }
