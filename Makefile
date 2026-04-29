@@ -115,7 +115,7 @@ http-test-ci:  ## CI 模式运行 Bruno HTTP 测试（JSON 输出 + 遇错即停
 		--env-var registered_order_id= \
 		--env-var registered_upload_id= \
 		--env-var registered_file_md5= \
-		--reporter json --output ../../test-results/bruno.json \
+		--reporter-json ../../test-results/bruno.json \
 		user-service club-service seckill-service im-service file-service
 
 # ============================================================
