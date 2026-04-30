@@ -6,8 +6,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 
 @SpringBootApplication(exclude = {
     com.alibaba.cloud.nacos.endpoint.NacosConfigEndpointAutoConfiguration.class,
-    com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration.class,
-    com.alibaba.cloud.sentinel.endpoint.SentinelEndpointAutoConfiguration.class
+    com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration.class
 })
 @EnableDiscoveryClient(autoRegister = false)
 public class GatewayApplication {

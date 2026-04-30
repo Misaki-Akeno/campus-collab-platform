@@ -1,5 +1,28 @@
 # Changelog
 
+## [Unreleased] — 2026-04-30 Phase 2 P1：Sentinel 限流 + traceId + Prometheus
+
+### 新增功能
+
+- **`campus-gateway` Sentinel 限流**：
+  - 添加 `spring-cloud-alibaba-sentinel-gateway` 依赖，接入 `SentinelGatewayFilter` 自动过滤链
+  - `SentinelGatewayConfig`：路由级通用限流（100 QPS/路由）+ 秒杀服务 IP 维度防刷（20 QPS/IP）+ 用户服务登录接口 IP 限流（5 QPS/IP）
+  - `SentinelGatewayBlockHandler`：被限流时返回统一 JSON `{"code":429,"msg":"Too Many Requests"}`
+  - 移除 `GatewayApplication` 和 `application.yml` 中对 `SentinelEndpointAutoConfiguration` 的排除，启用 Sentinel 完整自动装配
+
+- **全链路 traceId 透传**：
+  - `campus-gateway` 新增 `TraceIdFilter`（Order=-90）：请求无 `X-Trace-Id` Header 时自动生成 UUID traceId 并注入下游
+  - `campus-common` 新增 `TraceIdInterceptor`（提取 Header → MDC）+ `TraceWebMvcConfig`（注册拦截器，`@ConditionalOnWebApplication(SERVLET)` 防止在 Gateway WebFlux 环境加载）
+  - 所有 6 个服务日志格式加入 `[%X{traceId:-}]` 占位符，日志可按 traceId 全链路关联
+
+- **Prometheus 基础指标暴露**：
+  - `campus-common` 添加 `micrometer-registry-prometheus` 依赖（通过传递依赖覆盖全部 5 个业务服务）
+  - 所有服务 `application.yml` 扩展 `management.endpoints.web.exposure.include` 加入 `prometheus`，并打 `service` 标签
+  - `docker/docker-compose.yml` 新增 `campus-prometheus` 容器（prom/prometheus:v2.51.2，端口 9090，7 天数据保留）
+  - 新增 `docker/prometheus/prometheus.yml`：采集全部 6 个服务（gateway:9000 + 5 个业务服务），间隔 15s
+
+---
+
 ## [Unreleased] — 2026-04-23 CI 修复：Wait for services 超时（第二次）
 
 ### Bug Fix

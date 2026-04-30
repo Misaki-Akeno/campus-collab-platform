@@ -43,3 +43,19 @@ campus:
     secret: ${CAMPUS_JWT_SECRET}
     access-expire: 7200000
     refresh-expire: 604800000
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-}] %-5level %logger{36} - %msg%n"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      service: ${spring.application.name}

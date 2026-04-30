@@ -1,10 +1,12 @@
 package com.campus.common;
 
 import com.campus.common.config.JwtProperties;
+import com.campus.common.config.TraceWebMvcConfig;
 import com.campus.common.util.JwtUtil;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 /**
  * campus-common 自动配置类
@@ -12,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
+@Import(TraceWebMvcConfig.class)
 public class CommonAutoConfiguration {
 
     @Bean

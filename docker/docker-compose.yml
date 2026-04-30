@@ -98,11 +98,32 @@ services:
       timeout: 5s
       retries: 5
 
+  prometheus:
+    image: ${DOCKER_REGISTRY_PREFIX}prom/prometheus:v2.51.2
+    container_name: campus-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:9090/-/healthy"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
 volumes:
   mysql-data:
   redis-data:
   kafka-data:
   minio-data:
+  prometheus-data:
 
 # ============================================================
 # Java 服务容器模板（服务容器化时参照此结构添加）

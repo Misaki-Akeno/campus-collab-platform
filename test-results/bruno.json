@@ -1,0 +1,959 @@
+[
+  {
+    "iterationIndex": 0,
+    "results": [
+      {
+        "test": {
+          "filename": "user-service/01 - 用户注册.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/user/api/v1/register",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "data": "{\n  \"username\": \"testuser_bruno_1777519841\",\n  \"password\": \"Test@123456\",\n  \"email\": \"testuser_bruno_1777519841@campus.edu\",\n  \"nickname\": \"测试用户\"\n}"
+        },
+        "response": {
+          "status": 201,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:44 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "注册成功",
+            "data": {
+              "userId": "2049692905355395073",
+              "username": "testuser_bruno_1777519841"
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/user/api/v1/register",
+          "responseTime": 527
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "注册成功 - HTTP 201",
+            "status": "pass",
+            "uid": "cSKOSWf-KynWS4boGfWp-"
+          },
+          {
+            "description": "注册成功 - code 200",
+            "status": "pass",
+            "uid": "U46JUM7BMwuq6dGHCV7W1"
+          },
+          {
+            "description": "注册成功 - 返回 userId",
+            "status": "pass",
+            "uid": "SW3WijHn6WB1WhZeQgobs"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.929256706,
+        "name": "01 - 用户注册",
+        "path": "user-service/01 - 用户注册",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "user-service/02 - 用户登录.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/user/api/v1/login",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "data": "{\n  \"username\": \"testuser_bruno_1777519841\",\n  \"password\": \"Test@123456\"\n}"
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:45 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "登录成功",
+            "data": {
+              "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDQ5NjkyOTA1MzU1Mzk1MDczIiwidXNlcm5hbWUiOiJ0ZXN0dXNlcl9icnVub18xNzc3NTE5ODQxIiwicm9sZSI6MCwianRpIjoiMmEyMDU5YzAtZDFhMS00YWFjLWFlYzktMTQ2MzJmMmVlOWMyIiwiaWF0IjoxNzc3NTE5ODQ1LCJleHAiOjE3Nzc1MjcwNDV9.30EofkPUNISCGox9dyT0Rl_A2yaFKc5cg7eygDA_660",
+              "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDQ5NjkyOTA1MzU1Mzk1MDczIiwidXNlcm5hbWUiOiJ0ZXN0dXNlcl9icnVub18xNzc3NTE5ODQxIiwicm9sZSI6MCwianRpIjoiZTU5ZDY3MDMtM2U1MS00Y2RlLWFiY2UtNDY5ZGVjNjVjY2E3IiwiaWF0IjoxNzc3NTE5ODQ1LCJleHAiOjE3NzgxMjQ2NDV9.jrW7TR6SXQDgKAFDS_rFE1TKKs9ebWj28QFtPMMYWq0",
+              "expiresIn": 7200,
+              "userInfo": {
+                "userId": 2049692905355395000,
+                "username": "testuser_bruno_1777519841",
+                "nickname": "测试用户",
+                "role": 0,
+                "avatarUrl": null
+              }
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/user/api/v1/login",
+          "responseTime": 516
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "登录成功 - HTTP 200",
+            "status": "pass",
+            "uid": "FD7ZZmc9Q5arCdqiLTTN7"
+          },
+          {
+            "description": "登录成功 - code 200",
+            "status": "pass",
+            "uid": "SxILkplvdKt6pcMEHFnjd"
+          },
+          {
+            "description": "登录成功 - 返回 accessToken",
+            "status": "pass",
+            "uid": "ULvnJP9Au_DqEtMzJCU_Y"
+          },
+          {
+            "description": "登录成功 - 返回 userInfo",
+            "status": "pass",
+            "uid": "upimOxjgoVyMPCzcuZ9oG"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.646699772,
+        "name": "02 - 用户登录",
+        "path": "user-service/02 - 用户登录",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "user-service/03 - 刷新 Token.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/user/api/v1/token/refresh",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "data": "{\n  \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDQ5NjkyOTA1MzU1Mzk1MDczIiwidXNlcm5hbWUiOiJ0ZXN0dXNlcl9icnVub18xNzc3NTE5ODQxIiwicm9sZSI6MCwianRpIjoiZTU5ZDY3MDMtM2U1MS00Y2RlLWFiY2UtNDY5ZGVjNjVjY2E3IiwiaWF0IjoxNzc3NTE5ODQ1LCJleHAiOjE3NzgxMjQ2NDV9.jrW7TR6SXQDgKAFDS_rFE1TKKs9ebWj28QFtPMMYWq0\"\n}"
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:45 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIyMDQ5NjkyOTA1MzU1Mzk1MDczIiwidXNlcm5hbWUiOiJ0ZXN0dXNlcl9icnVub18xNzc3NTE5ODQxIiwicm9sZSI6MCwianRpIjoiZDdiM2FjYzktNTczYi00YjdhLThkN2EtYWY3OTk2ZDM4NDMxIiwiaWF0IjoxNzc3NTE5ODQ1LCJleHAiOjE3Nzc1MjcwNDV9.QbgH5FPOQUIfv9dfAToCM_nyUjM5oexleTpQhMAVXAQ",
+              "expiresIn": 7200
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/user/api/v1/token/refresh",
+          "responseTime": 20
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "刷新成功 - HTTP 200",
+            "status": "pass",
+            "uid": "p3Z4NvE8lfzAO8BMJa28r"
+          },
+          {
+            "description": "刷新成功 - 返回新 accessToken",
+            "status": "pass",
+            "uid": "3TtW-DirnQc5V3OS9Pg7O"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.130980356,
+        "name": "03 - 刷新 Token",
+        "path": "user-service/03 - 刷新 Token",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "user-service/04 - 获取当前用户信息.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/user/api/v1/me",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:46 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "userId": 2049692905355395000,
+              "username": "testuser_bruno_1777519841",
+              "nickname": "测试用户",
+              "email": "testuser_bruno_1777519841@campus.edu",
+              "phone": null,
+              "role": 0,
+              "avatarUrl": null,
+              "clubs": []
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/user/api/v1/me",
+          "responseTime": 83
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "获取用户信息 - HTTP 200",
+            "status": "pass",
+            "uid": "twYKkLyhyacLViqDohV29"
+          },
+          {
+            "description": "获取用户信息 - code 200",
+            "status": "pass",
+            "uid": "6ApgArF81I8XUYFLivIHg"
+          },
+          {
+            "description": "获取用户信息 - 返回用户数据",
+            "status": "pass",
+            "uid": "8GrjFsO49V1gCfOk7utX1"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.278953187,
+        "name": "04 - 获取当前用户信息",
+        "path": "user-service/04 - 获取当前用户信息",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "club-service/01 - 社团列表.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/club/api/v1/clubs?page=1&size=10",
+          "headers": {
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:46 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "records": [],
+              "total": 0,
+              "size": 10,
+              "current": 1,
+              "pages": 0
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/club/api/v1/clubs?page=1&size=10",
+          "responseTime": 36
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "社团列表 - HTTP 200",
+            "status": "pass",
+            "uid": "HQm6rNq620WhpTBg4rE-f"
+          },
+          {
+            "description": "社团列表 - code 200",
+            "status": "pass",
+            "uid": "z4TvuOirkvgrbEscdAcN0"
+          },
+          {
+            "description": "社团列表 - 返回分页结构",
+            "status": "pass",
+            "uid": "3MqT-dii2E1v-ymA2BNc6"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.165063618,
+        "name": "01 - 社团列表",
+        "path": "club-service/01 - 社团列表",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "club-service/02 - 创建社团.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/club/api/v1/clubs",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": "application/json"
+          },
+          "data": "{\n  \"name\": \"test-club-1777519846490\",\n  \"description\": \"auto-test\",\n  \"category\": \"academic\"\n}"
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:46 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "社团创建成功，待审核",
+            "data": {
+              "clubId": 2049692912821289000
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/club/api/v1/clubs",
+          "responseTime": 57
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "创建社团 - HTTP 200",
+            "status": "pass",
+            "uid": "cJbH8ME7izO9ZppylbHTs"
+          },
+          {
+            "description": "创建社团 - code 200",
+            "status": "pass",
+            "uid": "Y3a2mX8awkLQ3OwXPo2EP"
+          },
+          {
+            "description": "创建社团 - 返回 clubId",
+            "status": "pass",
+            "uid": "RB_rLZ1WVCGMb3bFTX9ZB"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.305624113,
+        "name": "02 - 创建社团",
+        "path": "club-service/02 - 创建社团",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "club-service/03 - 加入社团.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/club/api/v1/clubs/2049692912821289000/join",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:46 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 1011,
+            "msg": "社团不存在",
+            "data": null,
+            "traceId": null,
+            "success": false
+          },
+          "url": "http://localhost/club/api/v1/clubs/2049692912821289000/join",
+          "responseTime": 48
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "加入社团 - HTTP 200",
+            "status": "pass",
+            "uid": "zaIfgJq9srGxF0Db11Fxk"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.230499765,
+        "name": "03 - 加入社团",
+        "path": "club-service/03 - 加入社团",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "seckill-service/01 - 活动列表.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/seckill/api/v1/activities?page=1&size=10",
+          "headers": {
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:46 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "records": [],
+              "total": 0,
+              "size": 10,
+              "current": 1,
+              "pages": 0
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/seckill/api/v1/activities?page=1&size=10",
+          "responseTime": 49
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "活动列表 - HTTP 200",
+            "status": "pass",
+            "uid": "G9cgOC0bJWK4PYJr0oRRT"
+          },
+          {
+            "description": "活动列表 - code 200",
+            "status": "pass",
+            "uid": "QAmVLcnf6LpuMtvt_g1Z0"
+          },
+          {
+            "description": "活动列表 - 返回分页结构",
+            "status": "pass",
+            "uid": "4mo6ZZVvjs-WkH6MJqZD8"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.233722266,
+        "name": "01 - 活动列表",
+        "path": "seckill-service/01 - 活动列表",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "seckill-service/02 - 秒杀报名.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/seckill/api/v1/activities//book",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:47 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 500,
+            "msg": "系统内部错误",
+            "data": null,
+            "traceId": null,
+            "success": false
+          },
+          "url": "http://localhost/seckill/api/v1/activities//book",
+          "responseTime": 32
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "秒杀报名 - HTTP 200",
+            "status": "pass",
+            "uid": "O5yIy5FJI-J1UynFF0peO"
+          },
+          {
+            "description": "秒杀报名 - 返回 orderId 或业务码",
+            "status": "pass",
+            "uid": "exbeNDjLURI0u6CRR6oao"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.170336839,
+        "name": "02 - 秒杀报名",
+        "path": "seckill-service/02 - 秒杀报名",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "seckill-service/03 - 查询订单.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/seckill/api/v1/orders/",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers, Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:47 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 500,
+            "msg": "系统内部错误",
+            "data": null,
+            "traceId": null,
+            "success": false
+          },
+          "url": "http://localhost/seckill/api/v1/orders/",
+          "responseTime": 29
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "查询订单 - HTTP 200",
+            "status": "pass",
+            "uid": "rVzoXr3J1zYHFR0Rq7e05"
+          },
+          {
+            "description": "查询订单 - 返回业务码",
+            "status": "pass",
+            "uid": "DgGNdq03oGHnkvtfIX6yb"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.204087817,
+        "name": "03 - 查询订单",
+        "path": "seckill-service/03 - 查询订单",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "im-service/01 - 获取会话列表.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/im/api/v1/conversations",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:47 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": [],
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/im/api/v1/conversations",
+          "responseTime": 34
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "会话列表 - HTTP 200",
+            "status": "pass",
+            "uid": "cLWXfXC1FM1Qx4iMP3NFt"
+          },
+          {
+            "description": "会话列表 - code 200",
+            "status": "pass",
+            "uid": "aA-TRYxMbJbQPJ0m553ur"
+          },
+          {
+            "description": "会话列表 - 返回数组",
+            "status": "pass",
+            "uid": "yAlU6jwlaqRL5xj1eWNhZ"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.297790433,
+        "name": "01 - 获取会话列表",
+        "path": "im-service/01 - 获取会话列表",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "im-service/02 - 离线消息同步.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/im/api/v1/messages/sync",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:47 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": [],
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/im/api/v1/messages/sync",
+          "responseTime": 40
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "消息同步 - HTTP 200",
+            "status": "pass",
+            "uid": "rsQDKt2dNpCJWefejjWqq"
+          },
+          {
+            "description": "消息同步 - code 200",
+            "status": "pass",
+            "uid": "565aiEO_TeAUbcuGxhYpR"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.212639926,
+        "name": "02 - 离线消息同步",
+        "path": "im-service/02 - 离线消息同步",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "file-service/01 - 初始化分片上传.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/file/api/v1/upload/init?fileName=test.txt&fileSize=100&fileMd5=d41d8cd98f00b204e9800998ecf8427e&chunkCount=1",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:48 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "uploadedParts": [],
+              "type": "resume"
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/file/api/v1/upload/init?fileName=test.txt&fileSize=100&fileMd5=d41d8cd98f00b204e9800998ecf8427e&chunkCount=1",
+          "responseTime": 39
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "初始化上传 - HTTP 200",
+            "status": "pass",
+            "uid": "NrvxGRcR2h-GdSi8HQDWW"
+          },
+          {
+            "description": "初始化上传 - code 200",
+            "status": "pass",
+            "uid": "G1U4K-vLInoOdYtM98Zjd"
+          },
+          {
+            "description": "初始化上传 - 返回上传类型并保存变量",
+            "status": "pass",
+            "uid": "CYyeANIWQSIQkGaTu2zPW"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.156447557,
+        "name": "01 - 初始化分片上传",
+        "path": "file-service/01 - 初始化分片上传",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "file-service/02 - 上报分片完成.bru"
+        },
+        "request": {
+          "method": "POST",
+          "url": "http://localhost:9000/file/api/v1/upload/chunk/complete?uploadId=&partNumber=1&etag=fake-etag-for-api-test",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:48 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 500,
+            "msg": "系统内部错误",
+            "data": null,
+            "traceId": null,
+            "success": false
+          },
+          "url": "http://localhost/file/api/v1/upload/chunk/complete?uploadId=&partNumber=1&etag=fake-etag-for-api-test",
+          "responseTime": 35
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "上报分片完成 - HTTP 200",
+            "status": "pass",
+            "uid": "uLklx1EvKqnRv3iT8ntv1"
+          },
+          {
+            "description": "上报分片完成 - 返回业务码",
+            "status": "pass",
+            "uid": "WEQjX8Qhhy7ItJ7GSN_7I"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.276254924,
+        "name": "02 - 上报分片完成",
+        "path": "file-service/02 - 上报分片完成",
+        "iterationIndex": 0
+      },
+      {
+        "test": {
+          "filename": "file-service/03 - 查询文件元数据.bru"
+        },
+        "request": {
+          "method": "GET",
+          "url": "http://localhost:9000/file/api/v1/upload/d41d8cd98f00b204e9800998ecf8427e",
+          "headers": {
+            "Authorization": "Bearer ********",
+            "content-type": null
+          }
+        },
+        "response": {
+          "status": 200,
+          "statusText": "",
+          "headers": {
+            "vary": "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
+            "date": "Thu, 30 Apr 2026 03:30:48 GMT",
+            "content-type": "application/json",
+            "transfer-encoding": "chunked",
+            "keep-alive": "timeout=60",
+            "connection": "keep-alive"
+          },
+          "data": {
+            "code": 200,
+            "msg": "success",
+            "data": {
+              "fileId": "d41d8cd98f00b204e9800998ecf8427e",
+              "fileName": "test.txt",
+              "fileSize": 100,
+              "fileType": null,
+              "fileUrl": "",
+              "chunkCount": 1,
+              "uploadStatus": 0,
+              "uploaderId": 2049410307680944000,
+              "createTime": "2026-04-29T16:47:53",
+              "updateTime": "2026-04-29T16:47:53"
+            },
+            "traceId": null,
+            "success": true
+          },
+          "url": "http://localhost/file/api/v1/upload/d41d8cd98f00b204e9800998ecf8427e",
+          "responseTime": 36
+        },
+        "error": null,
+        "status": "pass",
+        "assertionResults": [],
+        "testResults": [
+          {
+            "description": "查询文件元数据 - HTTP 200",
+            "status": "pass",
+            "uid": "-oBNhrXj6AR30U-nhK2FD"
+          },
+          {
+            "description": "查询文件元数据 - 返回业务码与元数据字段",
+            "status": "pass",
+            "uid": "vZQ1cv0__iW_DBH_6Bfhq"
+          }
+        ],
+        "preRequestTestResults": [],
+        "postResponseTestResults": [],
+        "shouldStopRunnerExecution": false,
+        "runDuration": 0.184736583,
+        "name": "03 - 查询文件元数据",
+        "path": "file-service/03 - 查询文件元数据",
+        "iterationIndex": 0
+      }
+    ],
+    "summary": {
+      "totalRequests": 15,
+      "passedRequests": 15,
+      "failedRequests": 0,
+      "errorRequests": 0,
+      "skippedRequests": 0,
+      "totalAssertions": 0,
+      "passedAssertions": 0,
+      "failedAssertions": 0,
+      "totalTests": 38,
+      "passedTests": 38,
+      "failedTests": 0,
+      "totalPreRequestTests": 0,
+      "passedPreRequestTests": 0,
+      "failedPreRequestTests": 0,
+      "totalPostResponseTests": 0,
+      "passedPostResponseTests": 0,
+      "failedPostResponseTests": 0
+    }
+  }
+]

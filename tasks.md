@@ -82,6 +82,7 @@
 ## Phase 2（近期：补齐可上线能力）
 
 > ✅ **Phase 2 P0 全部完成**（2026-04-17）
+> ✅ **Phase 2 P1 全部完成**（2026-04-30）
 
 ### P0 ✅ 已完成
 
@@ -98,15 +99,15 @@
    - ✅ 绑定 `uploadId ↔ fileMd5 ↔ uploaderId`
    - ✅ 校验分片数量、etag 完整性、状态机流转合法性
 
-### P1
+### P1 ✅ 已完成
 
-1. Gateway 防刷
-   - 落地 Sentinel 规则
-   - 增加用户/IP 维度滑窗控制
+1. ~~Gateway 防刷~~
+   - ✅ Sentinel 路由级 100 QPS 限流 + 秒杀 IP 20 QPS/登录 IP 5 QPS 防刷
+   - ✅ 被限流返回 429 统一 JSON 格式
 
-2. 可观测性最小闭环
-   - traceId 注入与透传
-   - Prometheus 基础指标暴露
+2. ~~可观测性最小闭环~~
+   - ✅ traceId 全链路透传（Gateway 生成 → Header → MDC → 日志）
+   - ✅ Prometheus 指标暴露（/actuator/prometheus + Prometheus 容器）
 
 ## Phase 3（IM 实时能力）
 

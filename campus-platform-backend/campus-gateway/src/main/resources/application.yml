@@ -13,8 +13,12 @@ spring:
       - org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration
       - com.alibaba.cloud.nacos.endpoint.NacosConfigEndpointAutoConfiguration
       - com.alibaba.cloud.nacos.endpoint.NacosDiscoveryEndpointAutoConfiguration
-      - com.alibaba.cloud.sentinel.endpoint.SentinelEndpointAutoConfiguration
   cloud:
+    sentinel:
+      enabled: true
+      eager: true
+      scg:
+        order: -200
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
@@ -68,11 +72,20 @@ campus:
     access-expire: 7200000    # 2小时（毫秒）
     refresh-expire: 604800000 # 7天（毫秒）
 
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{traceId:-}] %-5level %logger{36} - %msg%n"
+
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
   endpoint:
     health:
       show-details: when-authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      service: ${spring.application.name}
