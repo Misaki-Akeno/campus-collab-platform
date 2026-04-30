@@ -14,9 +14,13 @@ auth:bearer {
   token: {{access_token}}
 }
 
+script:pre-request {
+  bru.setVar("club_name", "test-club-" + Date.now());
+}
+
 body:json {
   {
-    "name": "test-club",
+    "name": "{{club_name}}",
     "description": "auto-test",
     "category": "academic"
   }

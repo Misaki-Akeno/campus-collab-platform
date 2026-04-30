@@ -57,7 +57,7 @@ public class OssServiceImpl implements OssService {
         try {
             ensureBucketExists(bucket);
 
-            // 反射调用 S3Base.createMultipartUpload(region, bucket, object, headers, extraQueryParams)
+            // 反射调用 S3Base.createMultipartUpload(bucket, regionOverride, object, headers, extraQueryParams)
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
@@ -65,7 +65,7 @@ public class OssServiceImpl implements OssService {
                     "createMultipartUpload",
                     String.class, String.class, String.class, Multimap.class, Multimap.class);
             CreateMultipartUploadResponse response = (CreateMultipartUploadResponse) method.invoke(
-                    asyncClient, null, bucket, objectKey, headers, extraQueryParams);
+                    asyncClient, bucket, null, objectKey, headers, extraQueryParams);
 
             String uploadId = response.result().uploadId();
             log.info("MinIO 分片上传初始化: bucket={}, objectKey={}, uploadId={}", bucket, objectKey, uploadId);
@@ -115,7 +115,7 @@ public class OssServiceImpl implements OssService {
                 parts[i] = new Part(sortedPartNumbers[i], partEtags.get(sortedPartNumbers[i]));
             }
 
-            // 反射调用 S3Base.completeMultipartUpload(region, bucket, object, uploadId, Part[], headers, extraQueryParams)
+            // 反射调用 S3Base.completeMultipartUpload(bucket, regionOverride, object, uploadId, Part[], headers, extraQueryParams)
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
@@ -124,7 +124,7 @@ public class OssServiceImpl implements OssService {
                     String.class, String.class, String.class, String.class,
                     Part[].class, Multimap.class, Multimap.class);
             ObjectWriteResponse response = (ObjectWriteResponse) method.invoke(
-                    asyncClient, null, bucket, objectKey, uploadId, parts, headers, extraQueryParams);
+                    asyncClient, bucket, null, objectKey, uploadId, parts, headers, extraQueryParams);
 
             String fileUrl = buildFileUrl(bucket, objectKey);
             log.info("MinIO 分片合并完成: bucket={}, objectKey={}, partCount={}, etag={}, url={}",
@@ -139,7 +139,7 @@ public class OssServiceImpl implements OssService {
     @Override
     public void abortMultipartUpload(String bucket, String objectKey, String uploadId) {
         try {
-            // 反射调用 S3Base.abortMultipartUpload(region, bucket, object, uploadId, headers, extraQueryParams)
+            // 反射调用 S3Base.abortMultipartUpload(bucket, regionOverride, object, uploadId, headers, extraQueryParams)
             Multimap<String, String> headers = ArrayListMultimap.create();
             Multimap<String, String> extraQueryParams = ArrayListMultimap.create();
 
@@ -147,7 +147,7 @@ public class OssServiceImpl implements OssService {
                     "abortMultipartUpload",
                     String.class, String.class, String.class, String.class,
                     Multimap.class, Multimap.class);
-            method.invoke(asyncClient, null, bucket, objectKey, uploadId, headers, extraQueryParams);
+            method.invoke(asyncClient, bucket, null, objectKey, uploadId, headers, extraQueryParams);
 
             log.info("MinIO 分片上传已取消: bucket={}, objectKey={}, uploadId={}",
                     bucket, objectKey, uploadId);
