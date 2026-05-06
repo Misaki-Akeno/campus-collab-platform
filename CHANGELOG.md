@@ -1,5 +1,44 @@
 # Changelog
 
+## [Unreleased] — 2026-05-06 Phase 3 P0：IM WebSocket 主链路
+
+### 新增功能
+
+- **`campus-gateway` JwtAuthFilter WebSocket 支持**：
+  - 为 `/im/ws` 路径添加 query param token 读取（WebSocket 握手不支持自定义 Header）
+  - 抽取 `validateTokenAndForward()` 私有方法复用 token 验证逻辑，鉴权统一在 Gateway 完成
+
+- **`campus-im-service` WebSocket 主链路**：
+  - `WsConfig`：基于 Spring WebSocket `@EnableWebSocket` + `TextWebSocketHandler` 方案，注册 `/ws` 端点
+  - `WsHandshakeInterceptor`：握手阶段将 X-User-Id Header 写入 session attributes，解决 WebSocket 无法传递身份的问题
+  - `WsServer`：`TextWebSocketHandler` 实现，处理连接建立/消息分发/断开清理；连接时写 Redis `im:online:{userId}`，断开时删除
+  - `WsSessionManager`：线程安全的 userId ↔ WebSocketSession 双向映射；`sendMessage` 加 `synchronized(session)` 防止并发写
+  - `WsMessageDispatcher`：按 `cmd` 分发到 5 个 Handler
+  - `ImNodeConfig`：@PostConstruct 生成 `nodeId = hostname:port`，写 Redis 节点标识，订阅 Redisson RTopic `im:node:{nodeId}` 跨节点 channel
+
+- **`campus-im-service` 消息 Handler 体系**：
+  - `ChatMsgHandler`（核心）：Redis 幂等去重 → ACK 回执 → Kafka `im-message-persist` 投递 → 同/跨节点推送（Redisson RTopic）
+  - `HeartbeatHandler`：回 pong，刷新客户端保活
+  - `RecallHandler`：2 分钟时效校验 → DB 更新 `is_recalled=1` → 通知发送者
+  - `ReadReportHandler`：更新 `im_conversation_member.read_msg_id` + 清零 Redis 未读计数
+  - `TypingHandler`：广播正在输入状态给会话在线成员，不落库
+
+- **`campus-im-service` Kafka Consumer**：
+  - `MessagePersistConsumer`：消费 `im-message-persist`（group: im-persist-group），反序列化后写入 `im_message` 表
+
+- **`campus-im-service` 接口扩展**：
+  - `ImService` 新增 `validateMembership(userId, conversationId)` 公开方法
+  - `ImServiceImpl` 重构为 `doValidateMembership()` 私有方法供内部和接口实现共用
+  - `ImServiceApplication` 添加 `@EnableScheduling`（为后续 ACK 重试任务预置）
+
+### 架构决策
+
+- 使用 Spring WebSocket `TextWebSocketHandler` 而非 JSR-356 `@ServerEndpoint`，可完整使用 Spring DI，无需 ApplicationContextAware 静态持有者
+- 跨节点推送格式：`{targetUserId}:{msgJson}` 通过 Redisson RTopic 发布，目标节点 `broadcastRaw()` 解析后本地推送
+- WebSocket 连接后单设备策略：`kickExisting()` 踢掉旧连接并发送 `KICK_OFF` 指令
+
+---
+
 ## [Unreleased] — 2026-04-30 Phase 2 P1：Sentinel 限流 + traceId + Prometheus
 
 ### 新增功能

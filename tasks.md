@@ -111,16 +111,23 @@
 
 ## Phase 3（IM 实时能力）
 
-### P0
+> ✅ **Phase 3 P0 WebSocket 主链路完成**（2026-05-06）
 
-1. WebSocket 主链路
-- `ws://gateway:9000/im/ws?token=...`
-- 连接管理、消息分发、基础心跳
+### P0 ✅ 已完成
 
-2. 消息可靠性
-- ACK + 重试
-- Kafka Consumer 持久化
-- 基础幂等（客户端 msgId）
+1. ~~WebSocket 主链路~~
+- ✅ `ws://gateway:9000/im/ws?token=...`，Gateway JwtAuthFilter 支持 query param 鉴权
+- ✅ Spring WebSocket TextWebSocketHandler（`WsServer`）：连接建立/消息路由/断开清理
+- ✅ `WsSessionManager`：userId ↔ WebSocketSession 线程安全双向映射
+- ✅ `WsMessageDispatcher`：按 cmd 分发到 5 个 Handler（CHAT_MSG/HEARTBEAT/RECALL/READ_REPORT/TYPING）
+- ✅ `WsHandshakeInterceptor`：握手阶段将 X-User-Id Header 写入 session attributes
+- ✅ `ImNodeConfig`：nodeId 生成（hostname:port）、Redis 在线标识、Redisson RTopic 跨节点订阅
+
+2. ~~消息可靠性~~
+- ✅ 幂等去重：Redis `im:dedup:{msgId}` 5min TTL（setIfAbsent）
+- ✅ ACK：服务端收到 CHAT_MSG 后立即回 ACK，含 serverMsgId 和状态
+- ✅ Kafka Consumer（`MessagePersistConsumer`）：消费 `im-message-persist` 批量写 `im_message` 表
+- ✅ 离线兜底：目标用户不在线时消息已入 Kafka，上线后 `/messages/sync` 拉取
 
 ### P1
 

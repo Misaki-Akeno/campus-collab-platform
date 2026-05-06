@@ -51,12 +51,13 @@ make stop   # 停止本地环境
 ## 测试
 
 **框架**: JUnit 5 + Mockito + Spring Test
-**运行**: `make test` 全部通过（67 用例）
+**运行**: `make test` 全部通过（87 用例）
 
 ```
 campus-api/          # 3 个 FallbackFactory 测试 (4 用例) — 纯单元测试
 campus-user-service/ # Service(18) + Controllers(8+2) = 28 用例
 campus-club-service/ # Service(29) + Controller(6) = 35 用例
+campus-im-service/   # ImServiceImpl(4) + WsSessionManager(9) + WsMessageDispatcher(7) + ChatMsgHandler(7) = 27 用例（含 WebSocket 主链路）
 ```
 
 | 层级 | 技术 | 注意事项 |

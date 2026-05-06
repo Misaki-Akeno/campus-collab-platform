@@ -68,6 +68,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             }
         }
 
+        // WebSocket 握手：浏览器不支持自定义 Header，从 query param 读 token
+        if ("/im/ws".equals(path)) {
+            String wsToken = request.getQueryParams().getFirst("token");
+            if (!StringUtils.hasText(wsToken)) {
+                log.warn("WebSocket握手缺少token: {}", path);
+                exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                return exchange.getResponse().setComplete();
+            }
+            return validateTokenAndForward(exchange, chain, wsToken, path);
+        }
+
         String authHeader = request.getHeaders().getFirst(AUTHORIZATION_HEADER);
         if (!StringUtils.hasText(authHeader) || !authHeader.startsWith(BEARER_PREFIX)) {
             log.warn("请求缺少Token: {}", path);
@@ -75,7 +86,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return exchange.getResponse().setComplete();
         }
 
-        String token = authHeader.substring(BEARER_PREFIX.length());
+        return validateTokenAndForward(exchange, chain, authHeader.substring(BEARER_PREFIX.length()), path);
+    }
+
+    private Mono<Void> validateTokenAndForward(ServerWebExchange exchange, GatewayFilterChain chain,
+                                               String token, String path) {
+        ServerHttpRequest request = exchange.getRequest();
         try {
             Claims claims = jwtUtil.parseToken(token);
 

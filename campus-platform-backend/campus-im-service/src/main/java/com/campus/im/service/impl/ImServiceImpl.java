@@ -80,6 +80,15 @@ public class ImServiceImpl implements ImService {
     }
 
     private void validateConversationMembership(Long userId, String conversationId) {
+        doValidateMembership(userId, conversationId);
+    }
+
+    @Override
+    public void validateMembership(Long userId, String conversationId) {
+        doValidateMembership(userId, conversationId);
+    }
+
+    private void doValidateMembership(Long userId, String conversationId) {
         Long count = memberMapper.selectCount(
                 new LambdaQueryWrapper<ImConversationMember>()
                         .eq(ImConversationMember::getUserId, userId)

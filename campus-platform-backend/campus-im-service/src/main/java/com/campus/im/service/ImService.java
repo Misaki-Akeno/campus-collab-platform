@@ -17,4 +17,7 @@ public interface ImService {
      * @param conversationId 指定会话（null 表示拉取所有）
      */
     List<ImMessage> syncMessages(Long userId, String lastMsgId, String conversationId);
+
+    /** 校验用户是否为会话成员，非成员抛出 BizException(NOT_CONVERSATION_MEMBER) */
+    void validateMembership(Long userId, String conversationId);
 }
