@@ -1,5 +1,27 @@
 # Changelog
 
+## [Unreleased] — 2026-05-06 Phase 4 P0：AI Agent 核心框架（Tool Use 主链路）
+
+### 新增功能
+
+- **`ai-bot` AI Agent 核心框架**：
+  - `app/utils/http_client.py`：复用 httpx AsyncClient，统一超时（10s）和错误处理，所有工具 HTTP 调用的单一出口
+  - `app/tools/activity_tool.py`（`query_activity`）：调用 Gateway `GET /seckill/api/v1/activities`，格式化返回活动标题/地点/时间/名额
+  - `app/tools/club_tool.py`（`query_club`）：调用 Gateway `GET /club/api/v1/clubs`，支持 category/keyword 参数过滤
+  - `app/tools/user_tool.py`（`query_user_info`）：调用 Gateway `GET /user/api/v1/me`（需 Bearer Token），返回用户昵称/邮箱/已加入社团
+  - `app/agent/tool_registry.py`：Tool 注册表，统一维护 TOOL_SCHEMAS（Claude API 格式）和按 name 分发调用
+  - `app/agent/campus_agent.py`：Claude API agentic loop（MAX_TURNS=5），模型 claude-haiku-4-5-20251001；支持 tool_use 多轮调用和 end_turn 收敛
+  - `app/main.py`：更新 `/api/v1/chat` 端点，接入 CampusAgent，自动从 Authorization Header 提取 JWT 转发给 user_tool
+  - `tests/test_agent.py`：6 个 pytest-asyncio 用例，覆盖 end_turn 路径、tool_use 路径、MAX_TURNS 超限、工具成功/失败/未登录场景
+
+### 技术说明
+
+- Tool 错误（网络超时/5xx）返回 `"[工具调用失败: ...]"` 字符串，不中断 agentic loop
+- 环境变量 `GATEWAY_BASE_URL`（默认 `http://localhost:9000`）、`CLAUDE_MODEL`（默认 `claude-haiku-4-5-20251001`）、`ANTHROPIC_API_KEY`
+- `requirements.txt` 将 httpx 升级至 `>=0.27.0`
+
+---
+
 ## [Unreleased] — 2026-05-06 Phase 3 P0：IM WebSocket 主链路
 
 ### 新增功能
