@@ -1,5 +1,54 @@
 # Changelog
 
+## [Unreleased] — 2026-05-07 Phase 5 Phase A：Next.js 16 前端骨架（认证 + 布局 + 社团列表）
+
+### 新增功能
+
+- **`campus-platform-frontend` 全量重写为 Next.js 16**：
+  - 丢弃原 React Native 脚手架，采用 Next.js 16.2.5 + App Router + Turbopack
+  - 技术栈：shadcn/ui（new-york 风格，手动写组件规避网络限制）、Tailwind CSS v4（CSS 原生变量 + `@theme inline`）、TanStack Query v5、Zustand v5、Axios、Zod v4、react-hook-form
+
+- **认证体系**：
+  - `src/store/auth.ts`：Zustand persist store，accessToken 内存存储，refreshToken localStorage 持久化；`setAuth()` 同步写 `campus-session` / `campus-role` cookie 供 proxy 路由鉴权读取
+  - `src/lib/api/client.ts`：Axios 实例 + 请求拦截器（Bearer token）+ 401 拦截器（pendingQueue 暂停 → 刷新 → 重试）
+  - `src/lib/api/user.ts`：`login` / `register` / `getProfile` / `refreshToken` / `logout` / `changePassword`
+  - `src/app/(auth)/login/page.tsx`：Suspense 包装 + `useSearchParams` + Zod v4 表单验证
+  - `src/app/(auth)/register/page.tsx`：同模式，含密码确认 `refine` 校验
+
+- **路由保护**：
+  - `src/proxy.ts`（替代已弃用的 `middleware.ts`，导出 `proxy` 函数）：未登录跳 `/login?redirect=...`，非 ADMIN role 访问 `/admin/*` 跳首页，已登录访问 `/login`/`/register` 跳首页
+
+- **布局骨架**：
+  - `src/app/(user)/layout.tsx`：用户侧 flex 布局，左侧 `Sidebar`，主区域滚动
+  - `src/components/layout/Sidebar.tsx`：NavLink 导航、当前路径高亮、role=2 显示管理入口、用户头像 + 退出按钮
+  - `src/components/layout/Sidebar.tsx`（`AdminSidebar`）：管理侧导航 + 返回用户侧链接
+  - `src/app/admin/layout.tsx`：管理侧 flex 布局
+  - `src/app/(user)/page.tsx`：仪表盘首页（统计卡片占位 + 快捷跳转）
+
+- **社团模块（Phase A 范围）**：
+  - `src/lib/api/club.ts`：`list` / `get` / `create` / `join` / `approve` / `getMembers` / `approveMember` / `removeMember` / `updateMemberRole` / `getAnnouncements` / `postAnnouncement`
+  - `src/components/clubs/ClubCard.tsx`：社团卡片（logo / 名称 / 状态 Badge / 分类 / 成员数）
+  - `src/app/(user)/clubs/page.tsx`：TanStack Query + 关键词搜索 + 分页 + ClubCard 网格
+  - `src/app/(user)/clubs/[id]/page.tsx`：详情页骨架（Phase B 完整实现）
+
+- **shadcn/ui 组件（手动实现）**：
+  - `button`、`input`、`label`、`card`、`badge`、`separator`、`textarea`、`form`、`avatar`
+  - `src/lib/utils.ts`：`cn()` 工具（clsx + tailwind-merge）
+
+- **Next.js 配置**：
+  - `next.config.ts`：`/api/gateway/:path*` → `${GATEWAY_URL}/:path*` 代理；MinIO 图片 remotePatterns
+  - `postcss.config.mjs`：`@tailwindcss/postcss`（v4 无需 tailwind.config.ts）
+  - `.env.local.example`：`NEXT_PUBLIC_GATEWAY_URL=http://localhost:9000`
+
+### 技术说明
+
+- Next.js 16 弃用 `middleware` 文件约定，改用 `proxy`；导出函数名为 `proxy`（非 `middleware`）
+- Tailwind v4 不再使用 `tailwind.config.ts`，全部通过 CSS 文件 `@theme inline` 定义设计令牌
+- Zod v4 接口变化：`z.string().min()` message 参数仍有效，但部分 schema 方法有 breaking change
+- `useSearchParams()` 在 Next.js 15+ 需包裹于 `<Suspense>` 才能静态预渲染，login/register 页均已处理
+
+---
+
 ## [Unreleased] — 2026-05-06 Phase 4 P0：AI Agent 核心框架（Tool Use 主链路）
 
 ### 新增功能
