@@ -6,10 +6,15 @@
 
 ## 核心文档（开始前必读）
 
+执行项目修复与规划时先从 [tasks.md](tasks.md) 的当前阶段开始：建立差异清单，修复代码与文档不一致并完成运行验收，然后再制定后续分步与分布式方案。优化依据见 [docs/优化与演进.md](docs/优化与演进.md)，任务完成以执行记录为准。
+
 | 文档 | 内容 |
 |------|------|
+| [tasks.md](tasks.md) | Agent 执行入口：第一阶段修复与验收，第二阶段制定后续方案 |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 系统架构决策：服务拓扑、技术选型、数据库ER图、安全体系、部署架构 |
 | [docs/API.md](./docs/API.md) | 接口契约：全部 REST API（Request/Response）+ WebSocket 协议 |
+| [docs/优化与演进.md](docs/优化与演进.md) | 后续优化候选、前置条件、测量方式与分布式部署依据 |
+| [Improvement Plan 模板](docs/improvement-plans/TEMPLATE.md) | 演进方案统一格式；按 Improvement Plan N：主题命名，并登记优化文档中的方案索引 |
 
 ## 快速启动
 
@@ -29,10 +34,10 @@ make stop   # 停止本地环境
 | `campus-platform-backend/campus-club-service` | 社团服务：社团/活动/公告 | 8082 |
 | `campus-platform-backend/campus-im-service` | IM 服务：WebSocket/消息路由 | 8083 |
 | `campus-platform-backend/campus-file-service` | 文件服务：分片上传/秒传 | 8084 |
-| `campus-platform-backend/campus-seckill-service` | 秒杀服务：Redis Lua/异步下单 | 8085 |
+| `campus-platform-backend/campus-seckill-service` | 活动报名：MySQL 条件扣库存/同步订单终态 | 8085 |
 | `campus-platform-backend/campus-common` | 公共基础模块（被所有服务依赖） | — |
 | `campus-platform-backend/campus-api` | Feign 服务契约（跨服务通信接口） | — |
-| `campus-platform-frontend` | React Native 移动端应用 | — |
+| `campus-platform-frontend` | Next.js Web 前端 | 3000 |
 | `ai-bot` | Python FastAPI AI Agent 服务 | — |
 
 各子项目目录下有独立 `CLAUDE.md`，包含该服务开发的最小必要上下文。
@@ -51,13 +56,16 @@ make stop   # 停止本地环境
 ## 测试
 
 **框架**: JUnit 5 + Mockito + Spring Test
-**运行**: `make test` 全部通过（87 用例）
+**当前基线（2026-09-05）**：JDK 21.0.6 / Maven 3.9.16 执行 `mvn -B -ntp test`，152 用例通过，0 failures/errors/skipped。Docker 集成测试未包含在此数字中，准确状态见 `tasks.md`。
 
 ```
-campus-api/          # 3 个 FallbackFactory 测试 (4 用例) — 纯单元测试
-campus-user-service/ # Service(18) + Controllers(8+2) = 28 用例
-campus-club-service/ # Service(29) + Controller(6) = 35 用例
-campus-im-service/   # ImServiceImpl(4) + WsSessionManager(9) + WsMessageDispatcher(7) + ChatMsgHandler(7) = 27 用例（含 WebSocket 主链路）
+campus-common/          # 3 用例
+campus-api/             # 4 用例
+campus-user-service/    # 28 用例
+campus-club-service/    # 35 用例
+campus-im-service/      # 34 用例
+campus-file-service/    # 23 用例
+campus-seckill-service/ # 25 用例
 ```
 
 | 层级 | 技术 | 注意事项 |

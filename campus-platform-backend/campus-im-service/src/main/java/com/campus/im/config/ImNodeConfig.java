@@ -40,7 +40,7 @@ public class ImNodeConfig {
         RTopic topic = redisson.getTopic("im:node:" + nodeId);
         topic.addListener(String.class, (channel, raw) -> {
             try {
-                sessionManager.broadcastRaw(raw);
+                sessionManager.handleNodeMessage(raw);
             } catch (Exception ex) {
                 log.error("[IM] 跨节点消息处理失败", ex);
             }

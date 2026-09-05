@@ -162,6 +162,7 @@ CREATE TABLE `im_conversation_member` (
 -- ============================================================
 CREATE TABLE `im_message` (
   `msg_id`          varchar(64)  NOT NULL                          COMMENT '全局唯一消息ID',
+  `client_msg_id`   varchar(64)  DEFAULT NULL                      COMMENT '客户端幂等消息ID',
   `conversation_id` varchar(64)  NOT NULL                          COMMENT '会话ID',
   `sender_id`       bigint       NOT NULL                          COMMENT '发送者用户ID',
   `msg_type`        tinyint      NOT NULL                          COMMENT '1-文本 2-图片 3-文件 4-系统通知 5-@消息',
@@ -173,6 +174,7 @@ CREATE TABLE `im_message` (
   `update_time`     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted`      tinyint      NOT NULL DEFAULT '0',
   PRIMARY KEY (`msg_id`),
+  UNIQUE KEY `uk_sender_client_msg` (`sender_id`, `client_msg_id`),
   KEY `idx_conversation_time` (`conversation_id`, `create_time`),
   KEY `idx_sender` (`sender_id`, `create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='IM消息表';

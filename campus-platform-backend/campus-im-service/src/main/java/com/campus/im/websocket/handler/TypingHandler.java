@@ -5,6 +5,7 @@ import com.campus.im.config.ImNodeConfig;
 import com.campus.im.entity.ImConversationMember;
 import com.campus.im.mapper.ImConversationMemberMapper;
 import com.campus.im.websocket.WsSessionManager;
+import com.campus.im.websocket.ImOnlineRoute;
 import com.campus.im.websocket.dto.WsMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,7 @@ public class TypingHandler {
             } else {
                 String targetNode = (String) redisson.getBucket("im:online:" + targetUserId).get();
                 if (targetNode != null) {
-                    redisson.getTopic("im:node:" + targetNode)
+                    redisson.getTopic("im:node:" + ImOnlineRoute.nodeId(targetNode))
                             .publish(targetUserId + ":" + notifyJson);
                 }
             }

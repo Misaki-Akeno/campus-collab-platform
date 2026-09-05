@@ -4,7 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.campus.common.exception.BizException;
 import com.campus.common.exception.ErrorCode;
 import com.campus.im.entity.ImConversationMember;
+import com.campus.im.entity.ImMessage;
 import com.campus.im.mapper.ImConversationMemberMapper;
+import com.campus.im.mapper.ImMessageMapper;
 import com.campus.im.websocket.WsSessionManager;
 import com.campus.im.websocket.dto.WsMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,16 +14,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.redisson.api.RBucket;
 import org.redisson.api.RTopic;
+import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.dao.DuplicateKeyException;
 
-import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,15 +37,14 @@ class ChatMsgHandlerTest {
 
     @Mock private WsSessionManager sessionManager;
     @Mock private RedissonClient redisson;
-    @Mock private KafkaTemplate<String, String> kafkaTemplate;
     @Mock private ImConversationMemberMapper memberMapper;
+    @Mock private ImMessageMapper messageMapper;
     @Spy  private ObjectMapper objectMapper = new ObjectMapper();
 
     @InjectMocks
     private ChatMsgHandler handler;
 
     // Redisson 子 mock 需手动创建，@Mock 字段无法自动链式注入
-    @Mock private RBucket<String> dedupBucket;
     @Mock private RBucket<String> onlineBucket;
     @Mock private RTopic topic;
 
@@ -53,8 +54,6 @@ class ChatMsgHandlerTest {
 
     @BeforeEach
     void setUp() {
-        // redisson.getBucket(...) 返回 mock RBucket
-        when(redisson.getBucket(startsWith("im:dedup:"))).thenReturn((RBucket) dedupBucket);
         when(redisson.getBucket(startsWith("im:online:"))).thenReturn((RBucket) onlineBucket);
         when(redisson.getTopic(anyString())).thenReturn(topic);
     }
@@ -62,15 +61,17 @@ class ChatMsgHandlerTest {
     // ── 幂等去重 ────────────────────────────────────────────────
 
     @Test
-    void handle_duplicateMsgId_returnsAckDuplicate() {
-        when(dedupBucket.setIfAbsent(anyString(), any(Duration.class))).thenReturn(false);
+    void handle_duplicateMsgId_returnsOriginalServerId() {
+        ImMessage persisted = new ImMessage();
+        persisted.setMsgId("S-original");
+        when(messageMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(persisted);
+        when(memberMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(1L);
 
         handler.handle(senderId, buildMsg("dup-001"));
 
-        // Kafka 不应被调用（重复消息不落库）
-        verifyNoInteractions(kafkaTemplate);
-        // 应回 ACK DUPLICATE
-        verify(sessionManager).push(eq(senderId), argThat(json -> json.contains("DUPLICATE")));
+        verify(messageMapper, never()).insert(any(ImMessage.class));
+        verify(sessionManager).push(eq(senderId), argThat(json ->
+                json.contains("DUPLICATE") && json.contains("S-original")));
     }
 
     @Test
@@ -81,21 +82,50 @@ class ChatMsgHandlerTest {
 
         // 应回 ACK OK
         verify(sessionManager).push(eq(senderId), argThat(json -> json.contains("\"OK\"")));
-        // Kafka 应被调用一次
-        verify(kafkaTemplate).send(eq("im-message-persist"), eq(convId), anyString());
+        // 成功 ACK 只能发生在同步落库之后
+        InOrder ordered = inOrder(messageMapper, sessionManager);
+        ordered.verify(messageMapper).insert(any(ImMessage.class));
+        ordered.verify(sessionManager).push(eq(senderId), argThat((String json) -> json.contains("\"OK\"")));
+        verify(messageMapper).insert(argThat((ImMessage message) ->
+                "new-001".equals(message.getClientMsgId()) && senderId.equals(message.getSenderId())));
+    }
+
+    @Test
+    void handle_persistenceFailure_doesNotAckOrPush() {
+        setupValidScenario();
+        doThrow(new IllegalStateException("database unavailable"))
+                .when(messageMapper).insert(any(ImMessage.class));
+
+        assertThrows(IllegalStateException.class, () -> handler.handle(senderId, buildMsg("failed-001")));
+
+        verifyNoInteractions(sessionManager);
+    }
+
+    @Test
+    void handle_concurrentDuplicate_returnsWinningServerId() {
+        setupValidScenario();
+        ImMessage winning = new ImMessage();
+        winning.setMsgId("S-winning");
+        when(messageMapper.selectOne(any(LambdaQueryWrapper.class))).thenReturn(null, winning);
+        doThrow(new DuplicateKeyException("duplicate client id"))
+                .when(messageMapper).insert(any(ImMessage.class));
+
+        handler.handle(senderId, buildMsg("race-001"));
+
+        verify(sessionManager).push(eq(senderId), argThat(json ->
+                json.contains("DUPLICATE") && json.contains("S-winning")));
     }
 
     // ── 权限校验 ─────────────────────────────────────────────────
 
     @Test
     void handle_notConversationMember_throwsBizException() {
-        when(dedupBucket.setIfAbsent(anyString(), any(Duration.class))).thenReturn(true);
         when(memberMapper.selectCount(any(LambdaQueryWrapper.class))).thenReturn(0L);
 
         BizException ex = assertThrows(BizException.class,
                 () -> handler.handle(senderId, buildMsg("auth-fail-001")));
         assertEquals(ErrorCode.NOT_CONVERSATION_MEMBER.getCode(), ex.getCode());
-        verifyNoInteractions(kafkaTemplate);
+        verify(messageMapper, never()).insert(any(ImMessage.class));
     }
 
     // ── 同节点推送 ───────────────────────────────────────────────
@@ -120,7 +150,7 @@ class ChatMsgHandlerTest {
     void handle_receiverOnOtherNode_publishesToTopic() {
         setupValidScenario();
         when(sessionManager.isLocal(receiverId)).thenReturn(false);
-        when(onlineBucket.get()).thenReturn("other-node:8083");
+        when(onlineBucket.get()).thenReturn("other-node:8083|remote-session");
 
         handler.handle(senderId, buildMsg("cross-001"));
 
@@ -131,15 +161,13 @@ class ChatMsgHandlerTest {
     // ── 离线用户 ─────────────────────────────────────────────────
 
     @Test
-    void handle_receiverOffline_onlyKafka_noTopicPublish() {
+    void handle_receiverOffline_persistsButDoesNotPublishTopic() {
         setupValidScenario();
         when(sessionManager.isLocal(receiverId)).thenReturn(false);
-        when(onlineBucket.get()).thenReturn(null);  // 离线，Redis 无 nodeId
 
         handler.handle(senderId, buildMsg("offline-001"));
 
-        // Kafka 落库（离线兜底）
-        verify(kafkaTemplate).send(eq("im-message-persist"), eq(convId), anyString());
+        verify(messageMapper).insert(any(ImMessage.class));
         // 不应广播给离线用户
         verify(topic, never()).publish(any());
     }
@@ -154,15 +182,12 @@ class ChatMsgHandlerTest {
         msg.setPayload(null);
 
         assertDoesNotThrow(() -> handler.handle(senderId, msg));
-        verifyNoInteractions(kafkaTemplate, dedupBucket);
+        verifyNoInteractions(messageMapper);
     }
 
     // ── helper ───────────────────────────────────────────────────
 
     private void setupValidScenario() {
-        // 幂等通过（新消息）
-        when(dedupBucket.setIfAbsent(anyString(), any(Duration.class))).thenReturn(true);
-
         // 发送者是成员 + 接收者也是成员
         ImConversationMember senderMember = member(senderId);
         ImConversationMember receiverMember = member(receiverId);

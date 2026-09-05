@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RedissonClient;
+import org.redisson.api.RBucket;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -28,9 +29,12 @@ public class WsServer extends TextWebSocketHandler {
             return;
         }
 
-        sessionManager.kickExisting(userId);
-        sessionManager.register(userId, session);
-        redisson.getBucket("im:online:" + userId).set(ImNodeConfig.getNodeId());
+        WebSocketSession previous = sessionManager.register(userId, session);
+        String route = ImOnlineRoute.encode(ImNodeConfig.getNodeId(), session.getId());
+        RBucket<String> routeBucket = redisson.getBucket("im:online:" + userId);
+        String previousRoute = routeBucket.getAndSet(route);
+        sessionManager.kick(previous);
+        kickPreviousNode(userId, previousRoute, route);
 
         log.info("[WS] Connected: userId={}, sessionId={}", userId, session.getId());
     }
@@ -53,8 +57,12 @@ public class WsServer extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Long userId = sessionManager.getUserId(session);
         if (userId != null) {
-            sessionManager.unregister(userId);
-            redisson.getBucket("im:online:" + userId).delete();
+            boolean removedCurrent = sessionManager.unregister(session);
+            if (removedCurrent) {
+                String route = ImOnlineRoute.encode(ImNodeConfig.getNodeId(), session.getId());
+                RBucket<String> routeBucket = redisson.getBucket("im:online:" + userId);
+                routeBucket.compareAndSet(route, null);
+            }
             log.info("[WS] Disconnected: userId={}, status={}", userId, status);
         }
     }
@@ -74,6 +82,18 @@ public class WsServer extends TextWebSocketHandler {
             session.close(new CloseStatus(CloseStatus.POLICY_VIOLATION.getCode(), reason));
         } catch (Exception e) {
             log.warn("[WS] Close with error failed: {}", reason);
+        }
+    }
+
+    private void kickPreviousNode(Long userId, String previousRoute, String currentRoute) {
+        if (previousRoute == null || previousRoute.equals(currentRoute)) {
+            return;
+        }
+        String previousNode = ImOnlineRoute.nodeId(previousRoute);
+        String previousSession = ImOnlineRoute.sessionId(previousRoute);
+        if (previousSession != null && !previousNode.equals(ImNodeConfig.getNodeId())) {
+            redisson.getTopic("im:node:" + previousNode)
+                    .publish(WsSessionManager.buildKickControl(userId, previousSession));
         }
     }
 }

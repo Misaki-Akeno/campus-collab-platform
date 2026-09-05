@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased] — 2026-09-05 核心可靠性修复与计划重构
+
+- 报名改为 MySQL `available_stock > 0` 条件扣减与唯一 SUCCESS 订单同事务提交；Controller/前端改为同步成功语义，删除旧 Redis Lua、Kafka Consumer 和相关依赖。
+- IM 改为单条数据库写入完成后 ACK；增加 `client_msg_id` 与 `(sender_id, client_msg_id)` 唯一约束，重复发送返回原 serverMsgId，持久化 Consumer 非重复异常继续抛出。
+- WebSocket 在线路由增加 nodeId/sessionId token，关闭旧连接时 compare-delete，避免删除替代连接；Snowflake 支持显式节点配置和范围校验，多实例仍要求部署侧保证配置唯一。
+- 文件分片参数改为在预签名计算前传入；续传统一 uploadId key，增加 owner/参数校验、URL 重签和基础 merge 幂等。持久上传任务、Redis 过期恢复、对象/数据库恢复及业务引用授权仍待后续工作包。
+- 新增 `V1.1__im_message_idempotency.sql`，同步初始化 SQL；报名无需新增数据表迁移。
+- 后端 JDK 21.0.6 / Maven 3.9.16 全量 152 tests 通过且 9/9 reactor 打包成功；前端类型检查和生产构建、AI 6/6 测试通过。Docker Desktop 引擎故障导致真实 MySQL/Redis/Kafka/MinIO 与 Bruno 验收未运行。
+- 将 tasks.md 重构为 P0–P6 垂直工作包；Improvement Plan 1 只覆盖单实例正确性和最小业务闭环，性能、多实例与 AI 分别设置启动门槛。
+- 同步 API、架构、白皮书和开发指南的当前行为；异步 202/Redis Stream/Kafka 削峰只作为 O04 容量证据触发后的候选。
+
+---
+
 ## [Unreleased] — 2026-05-07 Phase 5 Phase A：Next.js 16 前端骨架（认证 + 布局 + 社团列表）
 
 ### 新增功能

@@ -49,8 +49,13 @@ public class UploadServiceImpl implements UploadService {
 
         FileMeta existing = fileMetaMapper.selectById(fileMd5);
 
-        if (existing != null && existing.getUploadStatus() == UploadStatus.COMPLETED
-                && existing.getFileSize() == fileSize) {
+        if (existing != null && existing.getUploadStatus() == UploadStatus.COMPLETED) {
+            if (existing.getFileSize() != fileSize) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "文件摘要与文件大小不一致");
+            }
+            if (!Objects.equals(existing.getUploaderId(), uploaderId)) {
+                throw new BizException(ErrorCode.FORBIDDEN, "无权复用该文件");
+            }
             log.info("文件秒传命中: fileId={}, fileName={}", fileMd5, fileName);
             result.put("type", "instant");
             result.put("fileUrl", existing.getFileUrl());
@@ -58,12 +63,24 @@ public class UploadServiceImpl implements UploadService {
         }
 
         if (existing != null && existing.getUploadStatus() == UploadStatus.UPLOADING) {
-            String chunkKey = String.format(RedisKeyConstant.FILE_CHUNK, existing.getFileId());
+            if (!Objects.equals(existing.getUploaderId(), uploaderId)) {
+                throw new BizException(ErrorCode.FORBIDDEN, "无权恢复该上传任务");
+            }
+            if (existing.getFileSize() != fileSize || existing.getChunkCount() != chunkCount) {
+                throw new BizException(ErrorCode.PARAM_ERROR, "续传参数与原上传任务不一致");
+            }
+            String uploadId = buildUploadId(existing.getFileId(), uploaderId);
+            validateUploadOwner(uploadId, uploaderId);
+            String chunkKey = String.format(RedisKeyConstant.FILE_CHUNK, uploadId);
             Map<Object, Object> uploadedChunks = redisTemplate.opsForHash().entries(chunkKey);
             redisTemplate.expire(chunkKey, UPLOAD_TMP_KEY_TTL_HOURS, TimeUnit.HOURS);
             log.info("断点续传: fileId={}, 已上传分片={}", fileMd5, uploadedChunks.size());
             result.put("type", "resume");
+            result.put("uploadId", uploadId);
             result.put("uploadedParts", uploadedChunks.keySet());
+            result.put("minioUploadId", resolveMinioUploadId(uploadId));
+            result.put("presignedUrls", generatePresignedUrls(
+                    resolveObjectKey(uploadId), resolveMinioUploadId(uploadId), chunkCount));
             return result;
         }
 
@@ -86,12 +103,7 @@ public class UploadServiceImpl implements UploadService {
         String objectKey = generateObjectKey(fileMd5, fileName);
         String minioUploadId = ossService.initMultipartUpload(bucket, objectKey);
 
-        List<String> presignedUrls = new ArrayList<>();
-        for (int i = 1; i <= chunkCount; i++) {
-            String url = ossService.generatePresignedPutUrl(bucket, objectKey,
-                    minioUploadId, i, PRESIGNED_URL_EXPIRE_SECONDS);
-            presignedUrls.add(url);
-        }
+        List<String> presignedUrls = generatePresignedUrls(objectKey, minioUploadId, chunkCount);
 
         redisTemplate.opsForValue().set(buildUploadObjectKey(uploadId), objectKey,
                 UPLOAD_TMP_KEY_TTL_HOURS, TimeUnit.HOURS);
@@ -108,6 +120,14 @@ public class UploadServiceImpl implements UploadService {
     @Override
     public void completeChunk(String uploadId, int partNumber, String etag, Long uploaderId) {
         validateUploadOwner(uploadId, uploaderId);
+        String fileId = extractFileMd5FromUploadId(uploadId);
+        FileMeta fileMeta = fileMetaMapper.selectById(fileId);
+        if (fileMeta == null || fileMeta.getUploadStatus() != UploadStatus.UPLOADING) {
+            throw new BizException(ErrorCode.UPLOAD_NOT_FOUND);
+        }
+        if (partNumber < 1 || partNumber > fileMeta.getChunkCount()) {
+            throw new BizException(ErrorCode.PARAM_ERROR, "分片序号超出上传任务范围");
+        }
         String chunkKey = String.format(RedisKeyConstant.FILE_CHUNK, uploadId);
         redisTemplate.opsForHash().put(chunkKey, String.valueOf(partNumber), etag);
         redisTemplate.expire(chunkKey, UPLOAD_TMP_KEY_TTL_HOURS, TimeUnit.HOURS);
@@ -116,6 +136,13 @@ public class UploadServiceImpl implements UploadService {
 
     @Override
     public String merge(String fileMd5, String uploadId, Long uploaderId) {
+        FileMeta completed = fileMetaMapper.selectById(fileMd5);
+        if (completed != null && completed.getUploadStatus() == UploadStatus.COMPLETED) {
+            if (!Objects.equals(completed.getUploaderId(), uploaderId)) {
+                throw new BizException(ErrorCode.FORBIDDEN, "无权操作该文件");
+            }
+            return completed.getFileUrl();
+        }
         validateUploadOwner(uploadId, uploaderId);
 
         String embeddedFileMd5 = extractFileMd5FromUploadId(uploadId);
@@ -227,6 +254,16 @@ public class UploadServiceImpl implements UploadService {
             ext = fileName.substring(dotIndex);
         }
         return "uploads/" + fileMd5 + ext;
+    }
+
+    private List<String> generatePresignedUrls(String objectKey, String minioUploadId, int chunkCount) {
+        List<String> urls = new ArrayList<>(chunkCount);
+        String bucket = minioProperties.getBucketName();
+        for (int i = 1; i <= chunkCount; i++) {
+            urls.add(ossService.generatePresignedPutUrl(bucket, objectKey,
+                    minioUploadId, i, PRESIGNED_URL_EXPIRE_SECONDS));
+        }
+        return urls;
     }
 
     private String resolveObjectKey(String uploadId) {

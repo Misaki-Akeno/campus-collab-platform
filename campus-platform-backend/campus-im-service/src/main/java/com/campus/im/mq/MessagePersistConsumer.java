@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -44,8 +45,12 @@ public class MessagePersistConsumer {
             msg.setReplyMsgId(event.payload().getReplyMsgId());
 
             messageMapper.insert(msg);
+        } catch (DuplicateKeyException duplicate) {
+            // Kafka 至少一次投递下，msg_id 主键冲突表示该消息已持久化。
+            log.info("[MQ] 消息已持久化，跳过重复投递: key={}", record.key());
         } catch (Exception e) {
             log.error("[MQ] 消息持久化失败: key={}, error={}", record.key(), e.getMessage(), e);
+            throw new IllegalStateException("消息持久化失败", e);
         }
     }
 }

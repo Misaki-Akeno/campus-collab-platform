@@ -14,14 +14,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.dao.DuplicateKeyException;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -32,8 +28,6 @@ class SeckillServiceImplTest {
 
     @Mock private SeckillActivityMapper activityMapper;
     @Mock private SeckillOrderMapper orderMapper;
-    @Mock private StringRedisTemplate redisTemplate;
-    @Mock private KafkaTemplate<String, String> kafkaTemplate;
 
     @InjectMocks
     private SeckillServiceImpl seckillService;
@@ -42,11 +36,6 @@ class SeckillServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // @PostConstruct is NOT called by Mockito, inject a real DefaultRedisScript instance
-        DefaultRedisScript<Long> script = new DefaultRedisScript<>();
-        script.setResultType(Long.class);
-        ReflectionTestUtils.setField(seckillService, "deductScript", script);
-
         // lenient: these stubs are only exercised in book() success paths
         lenient().doAnswer(inv -> {
             SeckillOrder order = inv.getArgument(0);
@@ -54,9 +43,8 @@ class SeckillServiceImplTest {
             return 1;
         }).when(orderMapper).insert(any(SeckillOrder.class));
 
-        // Default Kafka send succeeds
-        lenient().when(kafkaTemplate.send(anyString(), anyString(), anyString()))
-                .thenReturn(CompletableFuture.completedFuture(null));
+        lenient().when(orderMapper.selectCount(any())).thenReturn(0L);
+        lenient().when(activityMapper.deductAvailableStock(anyLong())).thenReturn(1);
     }
 
     // ===================== listActivities =====================
@@ -117,21 +105,16 @@ class SeckillServiceImplTest {
     // ===================== book =====================
 
     @Test
-    void book_success_luaReturnsPositive() {
+    void book_success_databaseDeductionAndOrderAreBothWritten() {
         SeckillActivity act = buildActivity(1L, 1, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(5));
         when(activityMapper.selectById(1L)).thenReturn(act);
-
-        // Lua returns 5L: 5 slots remaining after deduction
-        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), (Object[]) any()))
-                .thenReturn(5L);
 
         String orderId = seckillService.book(1L, 100L);
 
         assertNotNull(orderId);
         // orderMapper.insert must be called exactly once
         verify(orderMapper).insert(any(SeckillOrder.class));
-        // Kafka send must be called exactly once
-        verify(kafkaTemplate).send(anyString(), anyString(), anyString());
+        verify(activityMapper).deductAvailableStock(1L);
     }
 
     @Test
@@ -173,13 +156,11 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void book_stockEmpty_luaReturnsMinus1_throwsBizException() {
+    void book_stockEmpty_databaseConditionalUpdateReturnsZero() {
         SeckillActivity act = buildActivity(1L, 1, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(5));
         when(activityMapper.selectById(1L)).thenReturn(act);
 
-        // Lua returns -1: stock exhausted
-        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), (Object[]) any()))
-                .thenReturn(-1L);
+        when(activityMapper.deductAvailableStock(1L)).thenReturn(0);
 
         BizException e = assertThrows(BizException.class, () -> seckillService.book(1L, 100L));
         assertEquals(ErrorCode.STOCK_EMPTY.getCode(), e.getCode());
@@ -187,48 +168,30 @@ class SeckillServiceImplTest {
     }
 
     @Test
-    void book_duplicateBook_luaReturnsMinus2_throwsBizException() {
+    void book_duplicateBook_existingOrder_throwsBizException() {
         SeckillActivity act = buildActivity(1L, 1, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(5));
         when(activityMapper.selectById(1L)).thenReturn(act);
 
-        // Lua returns -2: duplicate registration
-        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), (Object[]) any()))
-                .thenReturn(-2L);
+        when(orderMapper.selectCount(any())).thenReturn(1L);
 
         BizException e = assertThrows(BizException.class, () -> seckillService.book(1L, 100L));
         assertEquals(ErrorCode.DUPLICATE_BOOK.getCode(), e.getCode());
+        verify(activityMapper, never()).deductAvailableStock(anyLong());
         verify(orderMapper, never()).insert(any(SeckillOrder.class));
     }
 
     @Test
-    void book_stockNotWarmedUp_luaReturnsMinus3_throwsBizException() {
+    void book_concurrentDuplicate_rollsBackViaBusinessException() {
         SeckillActivity act = buildActivity(1L, 1, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(5));
         when(activityMapper.selectById(1L)).thenReturn(act);
+        doThrow(new DuplicateKeyException("uk_user_activity"))
+                .when(orderMapper).insert(any(SeckillOrder.class));
 
-        // Lua returns -3: stock key not pre-warmed
-        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), (Object[]) any()))
-                .thenReturn(-3L);
+        BizException error = assertThrows(BizException.class,
+                () -> seckillService.book(1L, 100L));
 
-        BizException e = assertThrows(BizException.class, () -> seckillService.book(1L, 100L));
-        assertEquals(ErrorCode.STOCK_EMPTY.getCode(), e.getCode());
-        verify(orderMapper, never()).insert(any(SeckillOrder.class));
-    }
-
-    @Test
-    void book_luaReturnsNull_treatsAsStockEmptyAndNoOrderCreated() {
-        // Lua returns null when Redis connection fails or script execution error.
-        // Must be blocked — allowing through would create a dirty order without stock deduction.
-        SeckillActivity act = buildActivity(1L, 1, LocalDateTime.now().minusHours(1), LocalDateTime.now().plusHours(5));
-        when(activityMapper.selectById(1L)).thenReturn(act);
-
-        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList(), (Object[]) any()))
-                .thenReturn(null);
-
-        BizException e = assertThrows(BizException.class, () -> seckillService.book(1L, 100L));
-        assertEquals(ErrorCode.STOCK_EMPTY.getCode(), e.getCode());
-        verify(redisTemplate).execute(any(DefaultRedisScript.class), anyList(), (Object[]) any());
-        verify(orderMapper, never()).insert(any(SeckillOrder.class));
-        verify(kafkaTemplate, never()).send(anyString(), anyString(), anyString());
+        assertEquals(ErrorCode.DUPLICATE_BOOK.getCode(), error.getCode());
+        verify(activityMapper).deductAvailableStock(1L);
     }
 
     // ===================== getOrder =====================

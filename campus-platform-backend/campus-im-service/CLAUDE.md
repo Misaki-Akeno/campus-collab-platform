@@ -6,42 +6,30 @@ IM 消息系统（端口 **8083**）：WebSocket 长连接管理、消息路由�
 
 ## 技术栈
 
-Spring WebMVC + JDK 21 虚拟线程（WebSocket over Tomcat）
-Redis + Kafka + MySQL + MyBatis-Plus
+Spring WebMVC + WebSocket + Redis Pub/Sub + MySQL + MyBatis-Plus。
 
 ## 核心 Redis Key
 
 | Key 模板 | 结构 | TTL | 说明 |
 |---------|------|-----|------|
-| `im:online:{userId}` | String | WS 连接同生命周期 | value = nodeId |
-| `im:unread:{userId}` | Hash | 永久 | field=conversationId, value=count |
-| `im:dedup:{msgId}` | String | 5 min | 幂等去重，防客户端重发 |
-| `im:retry:{nodeId}` | ZSet | 永久（消费后删除） | score=sendTimestamp，ACK 重试队列 |
-| `im:recent:{userId}` | ZSet | 永久 | score=lastMsgTimestamp，最近会话 |
+| `im:online:{userId}` | String | WS 连接同生命周期 | value = `nodeId|sessionId`，用于条件删除和跨节点踢旧连接 |
 
-## Kafka Topics
+## 消息接收与幂等
 
-| Topic | 分区策略 | Consumer Group | 说明 |
-|-------|---------|----------------|------|
-| `im-message-persist` | 按 `conversationId` hash | `im-persist-group` | 消息持久化到 DB，会话内有序 |
-| `im-message-push` | 按 `targetNodeId` hash | `im-push-group` | 跨节点推送（Pub/Sub 备选方案） |
+1. 校验发送者是会话成员。
+2. 按 `(sender_id, client_msg_id)` 查询数据库幂等记录。
+3. 新消息同步写入 `im_message`；写入成功后才发送成功 ACK 和实时推送。
+4. 重复请求返回首次写入的真实 `serverMsgId`；写入异常不返回成功 ACK。
 
-## 消息可靠投递四层保障
-
-| 层 | 机制 | 说明 |
-|----|------|------|
-| L1 | 客户端 UUID msgId | 重发时携带相同 ID |
-| L2 | Redis `im:dedup:{msgId}` 5min | 服务端幂等去重 |
-| L3 | Redis ZSet 重试队列 | 3s 未收到客户端 ACK 则重试，最多 3 次 |
-| L4 | Kafka + DB 持久化 | 离线消息上线后通过 `/messages/sync` 拉取 |
+`im-message-persist` Consumer 仅用于兼容历史生产者，不参与当前 WebSocket 成功路径；非重复持久化异常会抛出并触发 Kafka 重试。
 
 ## 跨节点路由逻辑
 
 ```
-查 im:online:{targetUserId} 获取节点 ID
+查 im:online:{targetUserId} 获取节点和 session 所有权
 → 同节点：直接 wsSessionManager.push()
 → 跨节点：Redis Pub/Sub channel im:node:{targetNode}
-→ 离线：消息留存 Kafka，等用户上线后拉取
+→ 离线：消息已在数据库持久化，用户上线后通过同步接口拉取
 ```
 
 ## 会话 ID 生成规则
@@ -53,11 +41,11 @@ Redis + Kafka + MySQL + MyBatis-Plus
 
 | 类/目录 | 职责 |
 |--------|------|
-| `websocket/WsServer.java` | `@ServerEndpoint` 入口，处理连接/断开/消息 |
+| `websocket/WsServer.java` | WebSocket 入口，处理连接、路由所有权、断开和消息 |
 | `websocket/WsMessageDispatcher.java` | 按 `cmd` 分发到各 Handler |
 | `websocket/WsSessionManager.java` | `userId → Session` 映射管理 |
-| `retry/AckRetryTask.java` | 定时扫描 `im:retry:{nodeId}` ZSet，触发重推 |
-| `mq/MessagePersistConsumer.java` | Kafka Consumer，批量写入 `im_message` 表 |
+| `websocket/handler/ChatMsgHandler.java` | 权限校验、同步落库、幂等 ACK 和实时推送 |
+| `mq/MessagePersistConsumer.java` | 兼容历史 Kafka 消息，异常向监听容器抛出 |
 
 ## 接口（详见 [docs/API.md §6-7](../../docs/API.md)）
 

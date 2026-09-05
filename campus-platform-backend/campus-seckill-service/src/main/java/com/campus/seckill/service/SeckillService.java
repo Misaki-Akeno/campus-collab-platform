@@ -15,9 +15,8 @@ public interface SeckillService {
     /**
      * 秒杀报名（核心高并发接口）。
      * <p>
-     * 先执行 Redis Lua 原子扣减，成功后直接写入 SUCCESS 状态订单；
-     * Lua 失败（库存不足/重复报名/未预热）直接抛异常，无数据库操作。
-     * Kafka 消息仅用于异步对账/补偿。
+     * 在同一数据库事务内条件扣减库存并写入 SUCCESS 订单。
+     * 数据库唯一键防止重复报名，任一步失败都会回滚库存。
      * </p>
      * @return orderId
      */

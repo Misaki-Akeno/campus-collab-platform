@@ -63,12 +63,6 @@ function OrderStatusPanel({ orderId }: { orderId: string }) {
       if (res.code !== 200) throw new Error(res.msg);
       return res.data;
     },
-    // 处理中时每 2s 轮询一次，成功或失败后停止
-    refetchInterval: (query) => {
-      const status = query.state.data?.status;
-      if (status === OrderStatusConst.PROCESSING) return 2_000;
-      return false;
-    },
   });
 
   if (isLoading || !order) {
@@ -76,18 +70,6 @@ function OrderStatusPanel({ orderId }: { orderId: string }) {
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
         查询订单结果中...
-      </div>
-    );
-  }
-
-  if (order.status === OrderStatusConst.PROCESSING) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-        <Timer className="size-4 shrink-0 animate-pulse" />
-        <div>
-          <p className="font-medium">排队中，请稍候…</p>
-          <p className="text-xs text-amber-600">系统正在处理您的报名，请勿重复操作</p>
-        </div>
       </div>
     );
   }
@@ -312,7 +294,7 @@ export default function ActivityDetailPage({
 
         {isOngoing && !isSoldOut && !orderId && (
           <p className="text-xs text-center text-muted-foreground">
-            报名成功后将异步确认，请稍候片刻
+            提交成功即表示已获得名额
           </p>
         )}
       </div>

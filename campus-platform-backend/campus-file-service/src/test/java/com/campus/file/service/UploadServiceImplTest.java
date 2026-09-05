@@ -66,10 +66,9 @@ class UploadServiceImplTest {
     private static final String OBJECT_KEY_REDIS = "file:upload:object:" + UPLOAD_ID;
     private static final String MINIO_ID_REDIS   = "file:upload:minio:"  + UPLOAD_ID;
 
-    // Resume path: UploadServiceImpl uses existing.getFileId() (= FILE_MD5) as the chunk key,
-    // not uploadId. Compute dynamically to stay bound to the actual FileMeta object.
+    // 续传和分片上报必须使用同一个 uploadId 维度的 Redis key。
     private static String resumeChunkKey(FileMeta existing) {
-        return "file:chunk:" + existing.getFileId();
+        return "file:chunk:" + existing.getFileId() + ":" + UPLOADER_ID;
     }
 
     @BeforeEach
@@ -115,6 +114,11 @@ class UploadServiceImplTest {
         String chunkKey = resumeChunkKey(existing);
         Map<Object, Object> alreadyUploaded = new HashMap<>();
         alreadyUploaded.put("1", "etag-part1");
+        when(valueOps.get(OWNER_KEY)).thenReturn(String.valueOf(UPLOADER_ID));
+        when(valueOps.get(OBJECT_KEY_REDIS)).thenReturn("uploads/" + FILE_MD5 + ".pdf");
+        when(valueOps.get(MINIO_ID_REDIS)).thenReturn("minio-upload-id-001");
+        when(ossService.generatePresignedPutUrl(anyString(), anyString(), anyString(), anyInt(), anyInt()))
+                .thenReturn("https://presigned.url/part");
         when(hashOps.entries(eq(chunkKey))).thenReturn(alreadyUploaded);
         when(redisTemplate.expire(eq(chunkKey), anyLong(), any(TimeUnit.class))).thenReturn(true);
 
@@ -122,6 +126,7 @@ class UploadServiceImplTest {
                 FILE_MD5, FILE_NAME, FILE_SIZE, CHUNK_COUNT, UPLOADER_ID);
 
         assertEquals("resume", result.get("type"));
+        assertEquals(UPLOAD_ID, result.get("uploadId"));
         assertNotNull(result.get("uploadedParts"));
         verify(ossService, never()).initMultipartUpload(anyString(), anyString());
     }
@@ -166,6 +171,8 @@ class UploadServiceImplTest {
     @Test
     void completeChunk_success() {
         when(valueOps.get(OWNER_KEY)).thenReturn(String.valueOf(UPLOADER_ID));
+        when(fileMetaMapper.selectById(FILE_MD5)).thenReturn(
+                buildFileMeta(FILE_MD5, UploadStatus.UPLOADING, FILE_SIZE, UPLOADER_ID));
         when(redisTemplate.expire(anyString(), anyLong(), any(TimeUnit.class))).thenReturn(true);
 
         assertDoesNotThrow(() ->
@@ -186,6 +193,19 @@ class UploadServiceImplTest {
                 uploadService.completeChunk(UPLOAD_ID, 1, "etag-abc", UPLOADER_ID));
 
         assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+        verify(hashOps, never()).put(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void completeChunk_partNumberOutOfRange_rejected() {
+        when(valueOps.get(OWNER_KEY)).thenReturn(String.valueOf(UPLOADER_ID));
+        when(fileMetaMapper.selectById(FILE_MD5)).thenReturn(
+                buildFileMeta(FILE_MD5, UploadStatus.UPLOADING, FILE_SIZE, UPLOADER_ID));
+
+        BizException ex = assertThrows(BizException.class, () ->
+                uploadService.completeChunk(UPLOAD_ID, CHUNK_COUNT + 1, "etag-abc", UPLOADER_ID));
+
+        assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
         verify(hashOps, never()).put(anyString(), anyString(), anyString());
     }
 
@@ -303,17 +323,14 @@ class UploadServiceImplTest {
      * status=COMPLETED 时不可再次 merge，抛出 FILE_UPLOAD_FAIL。
      */
     @Test
-    void merge_statusNotUploading_throwsBizException() {
-        when(valueOps.get(OWNER_KEY)).thenReturn(String.valueOf(UPLOADER_ID));
-
-        // 已是 COMPLETED 状态
+    void merge_alreadyCompleted_returnsSameUrlIdempotently() {
         FileMeta fileMeta = buildFileMeta(FILE_MD5, UploadStatus.COMPLETED, FILE_SIZE, UPLOADER_ID);
+        fileMeta.setFileUrl("https://minio.example.com/uploads/abc123.pdf");
         when(fileMetaMapper.selectById(FILE_MD5)).thenReturn(fileMeta);
 
-        BizException ex = assertThrows(BizException.class, () ->
-                uploadService.merge(FILE_MD5, UPLOAD_ID, UPLOADER_ID));
+        String result = uploadService.merge(FILE_MD5, UPLOAD_ID, UPLOADER_ID);
 
-        assertEquals(ErrorCode.FILE_UPLOAD_FAIL.getCode(), ex.getCode());
+        assertEquals(fileMeta.getFileUrl(), result);
         verify(ossService, never()).completeMultipartUpload(anyString(), anyString(), anyString(), any());
     }
 

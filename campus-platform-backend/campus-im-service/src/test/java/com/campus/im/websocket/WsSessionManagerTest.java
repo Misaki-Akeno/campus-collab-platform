@@ -77,7 +77,7 @@ class WsSessionManagerTest {
         WebSocketSession session = openSession("s5");
         manager.register(5L, session);
 
-        manager.unregister(5L);
+        assertTrue(manager.unregister(session));
 
         assertFalse(manager.isLocal(5L));
         assertNull(manager.getUserId(session));
@@ -86,19 +86,44 @@ class WsSessionManagerTest {
     // ── kickExisting ───────────────────────────────────────────
 
     @Test
-    void kickExisting_closesOldSession() throws Exception {
+    void registerNewSession_oldCloseCannotRemoveNewSession() throws Exception {
         WebSocketSession old = openSession("s6");
         manager.register(6L, old);
+        WebSocketSession replacement = openSession("s6-new");
+        WebSocketSession displaced = manager.register(6L, replacement);
 
-        manager.kickExisting(6L);
+        manager.kick(displaced);
+        assertFalse(manager.unregister(old));
 
         verify(old).close();
+        assertTrue(manager.isLocal(6L));
+        assertEquals(6L, manager.getUserId(replacement));
     }
 
     @Test
-    void kickExisting_noExisting_noOp() {
+    void kick_noExisting_noOp() {
         // 不应抛异常
-        assertDoesNotThrow(() -> manager.kickExisting(99L));
+        assertDoesNotThrow(() -> manager.kick(null));
+    }
+
+    @Test
+    void handleNodeMessage_matchingKickControl_closesCurrentSession() throws Exception {
+        WebSocketSession session = openSession("remote-old");
+        manager.register(8L, session);
+
+        manager.handleNodeMessage(WsSessionManager.buildKickControl(8L, "remote-old"));
+
+        verify(session).close();
+    }
+
+    @Test
+    void handleNodeMessage_staleKickControl_doesNotCloseReplacement() throws Exception {
+        WebSocketSession replacement = openSession("remote-new");
+        manager.register(8L, replacement);
+
+        manager.handleNodeMessage(WsSessionManager.buildKickControl(8L, "remote-old"));
+
+        verify(replacement, never()).close();
     }
 
     // ── broadcastRaw ───────────────────────────────────────────

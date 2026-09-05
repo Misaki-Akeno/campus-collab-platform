@@ -6,18 +6,19 @@ import com.campus.common.exception.ErrorCode;
 import com.campus.common.util.SnowflakeIdUtil;
 import com.campus.im.config.ImNodeConfig;
 import com.campus.im.entity.ImConversationMember;
+import com.campus.im.entity.ImMessage;
 import com.campus.im.mapper.ImConversationMemberMapper;
+import com.campus.im.mapper.ImMessageMapper;
 import com.campus.im.websocket.WsSessionManager;
+import com.campus.im.websocket.ImOnlineRoute;
 import com.campus.im.websocket.dto.WsMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RBucket;
 import org.redisson.api.RedissonClient;
-import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.List;
 
 @Slf4j
@@ -25,12 +26,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ChatMsgHandler {
 
-    private static final String TOPIC_PERSIST = "im-message-persist";
-
     private final WsSessionManager sessionManager;
     private final RedissonClient redisson;
-    private final KafkaTemplate<String, String> kafkaTemplate;
     private final ImConversationMemberMapper memberMapper;
+    private final ImMessageMapper messageMapper;
     private final ObjectMapper objectMapper;
 
     public void handle(Long senderId, WsMessage msg) {
@@ -48,34 +47,62 @@ public class ChatMsgHandler {
             return;
         }
 
-        // Step 1: 幂等去重（5 分钟内相同 clientMsgId 不重复处理）
-        RBucket<String> dedupBucket = redisson.getBucket("im:dedup:" + clientMsgId);
-        boolean isNew = dedupBucket.setIfAbsent("1", Duration.ofMinutes(5));
-        if (!isNew) {
-            sessionManager.push(senderId, buildAck(clientMsgId, "S-DEDUP", "DUPLICATE"));
+        // Step 1: 权限校验（发送者必须是会话成员）
+        validateMembership(senderId, payload.getConversationId());
+
+        // Step 2: 数据库幂等键长期有效；重复请求返回首次持久化的真实消息 ID。
+        ImMessage existing = findExisting(senderId, clientMsgId);
+        if (existing != null) {
+            sessionManager.push(senderId, buildAck(clientMsgId, existing.getMsgId(), "DUPLICATE"));
             return;
         }
 
-        // Step 2: 权限校验（发送者必须是会话成员）
-        validateMembership(senderId, payload.getConversationId());
-
-        // Step 3: 生成服务端消息 ID
+        // Step 3: 先同步持久化。insert 返回前不会发送成功 ACK，失败时客户端可安全重试。
         String serverMsgId = "S-" + SnowflakeIdUtil.nextIdStr();
-
-        // Step 4: 立即回 ACK，客户端停止重发计时
-        sessionManager.push(senderId, buildAck(clientMsgId, serverMsgId, "OK"));
-
-        // Step 5: 投递 Kafka 持久化（按 conversationId hash 分区，保证会话内消息有序）
         try {
-            WsMessageEvent event = new WsMessageEvent(serverMsgId, senderId, payload);
-            kafkaTemplate.send(TOPIC_PERSIST, payload.getConversationId(),
-                               objectMapper.writeValueAsString(event));
-        } catch (Exception e) {
-            log.error("[WS] Kafka 投递失败: serverMsgId={}", serverMsgId, e);
+            messageMapper.insert(toEntity(serverMsgId, clientMsgId, senderId, payload));
+        } catch (DuplicateKeyException race) {
+            // 两次重试并发到达时，由数据库唯一约束裁决；返回获胜请求的真实 ID。
+            existing = findExisting(senderId, clientMsgId);
+            if (existing == null) {
+                throw race;
+            }
+            sessionManager.push(senderId, buildAck(clientMsgId, existing.getMsgId(), "DUPLICATE"));
+            return;
         }
 
-        // Step 6: 向会话所有成员推送（含发送者，让发送者看到服务端确认的消息）
+        // Step 4: 已持久化后再确认并推送。
+        sessionManager.push(senderId, buildAck(clientMsgId, serverMsgId, "OK"));
         pushToConversationMembers(senderId, payload.getConversationId(), serverMsgId, payload);
+    }
+
+    private ImMessage findExisting(Long senderId, String clientMsgId) {
+        return messageMapper.selectOne(new LambdaQueryWrapper<ImMessage>()
+                .eq(ImMessage::getSenderId, senderId)
+                .eq(ImMessage::getClientMsgId, clientMsgId)
+                .last("LIMIT 1"));
+    }
+
+    private ImMessage toEntity(String serverMsgId, String clientMsgId, Long senderId,
+                               WsMessage.ChatMsgPayload payload) {
+        ImMessage message = new ImMessage();
+        message.setMsgId(serverMsgId);
+        message.setClientMsgId(clientMsgId);
+        message.setConversationId(payload.getConversationId());
+        message.setSenderId(senderId);
+        message.setMsgType(payload.getType());
+        message.setContent(payload.getContent());
+        message.setIsRecalled(0);
+        List<Long> atUsers = payload.getAtUserIds();
+        if (atUsers != null && !atUsers.isEmpty()) {
+            try {
+                message.setAtUserIds(objectMapper.writeValueAsString(atUsers));
+            } catch (Exception e) {
+                throw new IllegalArgumentException("@用户列表序列化失败", e);
+            }
+        }
+        message.setReplyMsgId(payload.getReplyMsgId());
+        return message;
     }
 
     private void validateMembership(Long userId, String conversationId) {
@@ -105,7 +132,7 @@ public class ChatMsgHandler {
                 String targetNode = (String) redisson.getBucket("im:online:" + targetUserId).get();
                 if (targetNode != null) {
                     // 跨节点推送：格式为 targetUserId:jsonMsg
-                    redisson.getTopic("im:node:" + targetNode)
+                    redisson.getTopic("im:node:" + ImOnlineRoute.nodeId(targetNode))
                             .publish(targetUserId + ":" + pushJson);
                 }
                 // 离线用户：Kafka 落库后，上线通过 /messages/sync 拉取

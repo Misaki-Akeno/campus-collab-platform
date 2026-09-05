@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 public class ImMessage {
     @TableId
     private String msgId;
+    /** 客户端幂等键；与 senderId 组成唯一约束。 */
+    private String clientMsgId;
     private String conversationId;
     private Long senderId;
     /** 1-文本 2-图片 3-文件 4-系统通知 5-@消息 */

@@ -125,6 +125,7 @@ class SeckillControllerTest {
                         .header("X-User-Id", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.msg").value("报名成功"))
                 .andExpect(jsonPath("$.data").exists())
                 .andExpect(jsonPath("$.data.orderId").value("order-abc-123"));
     }

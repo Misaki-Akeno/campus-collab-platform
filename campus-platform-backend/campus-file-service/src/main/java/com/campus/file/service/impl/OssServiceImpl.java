@@ -12,8 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -80,20 +78,17 @@ public class OssServiceImpl implements OssService {
     public String generatePresignedPutUrl(String bucket, String objectKey,
                                           String uploadId, int partNumber, int expiresSeconds) {
         try {
-            // GetPresignedObjectUrlArgs 不支持额外查询参数，需手动拼接 S3 multipart 协议所需的 uploadId/partNumber
-            String baseUrl = minioClient.getPresignedObjectUrl(
+            // multipart 参数必须在签名计算前传入，签名后拼接会导致 S3/MinIO 校验失败。
+            return minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.PUT)
                             .bucket(bucket)
                             .object(objectKey)
+                            .extraQueryParams(Map.of(
+                                    "uploadId", uploadId,
+                                    "partNumber", String.valueOf(partNumber)))
                             .expiry(expiresSeconds, TimeUnit.SECONDS)
                             .build());
-
-            String separator = baseUrl.contains("?") ? "&" : "?";
-            return baseUrl
-                    + separator
-                    + "uploadId=" + URLEncoder.encode(uploadId, StandardCharsets.UTF_8)
-                    + "&partNumber=" + partNumber;
         } catch (Exception e) {
             log.error("预签名 URL 生成失败: bucket={}, objectKey={}, partNumber={}",
                     bucket, objectKey, partNumber, e);

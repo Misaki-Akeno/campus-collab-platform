@@ -4,12 +4,14 @@
 
 ## 技术栈
 
-- **后端**: Spring Boot 3.5 + Spring Cloud 2024 + Spring Cloud Alibaba 2024 (JDK 21)
+- **后端**: Spring Boot 3.3.13 + Spring Cloud 2023.0.3 + Spring Cloud Alibaba 2023.0.3.4 (JDK 21)
 - **网关**: Spring Cloud Gateway + Nacos + Sentinel
-- **数据存储**: MySQL 8.4 + Redis 8.6.2 + Kafka 4.0.2
+- **数据存储**: MySQL 8.4 + Redis 7.4.8 + Kafka 4.0.1
 - **文件存储**: MinIO / 阿里云 OSS
-- **移动端**: React Native 0.79+
+- **Web 前端**: Next.js 16.2.5 + React 19.2.6
 - **AI 服务**: Python + FastAPI 
+
+> 2026-09-05 已修订设计文档，目标能力尚待分项实现。当前状态与优化优先级见 [tasks.md](tasks.md)，接口现状与 v2 目标见 [docs/API.md](docs/API.md)。
 
 ## 快速开始
 
@@ -58,7 +60,7 @@ make stop
 
 ### HTTP 测试（Bruno）
 
-使用轻量级 CLI 工具 `bru` 对运行中的服务执行端到端 API 验证。测试用例定义在 `tests/bruno/`，覆盖了注册 → 登录 → Token 刷新 → 社团/活动/IM/文件全链路。
+使用轻量级 CLI 工具 `bru` 对运行中的服务执行端到端 API 验证。测试用例定义在 `tests/bruno/`，包含注册、登录、Token 刷新及社团/活动/IM/文件接口用例，完整用户与恢复流程按 tasks.md 补齐。
 
 ```bash
 npm install -g @usebruno/cli    # 全局安装（仅一次）
@@ -82,13 +84,13 @@ make http-test                  # 本地交互模式查看结果
 | **Service 层** | JUnit 5 + Mockito + @InjectMocks | 注册/登录/Token 刷新/改密、社团 CRUD/成员管理 |
 | **Controller 层** | Standalone MockMvc + GlobalExceptionHandler | 请求/响应映射、参数校验、异常处理 |
 | **API 层** | 纯单元测试 | Feign 降级工厂行为验证 |
-| **HTTP 端到端** | Bruno CLI + `.bru` 测试集 | 全服务 API 链路验证 |
+| **HTTP 端到端** | Bruno CLI + `.bru` 测试集 | 跨服务 API 验证（真实上传与故障场景待补） |
 
-**当前状态**: 67 个单元测试用例 + 12 个 HTTP 集成测试用例。
+**测试状态**：下列为仓库已有测试结构，最近执行结果以 CI/本地报告为准；恢复、权限和真实文件上传场景按 [tasks.md](tasks.md) 补齐。
 
 ## CI/CD
 
-GitHub Actions 工作流定义在 `.github/workflows/ci.yml`，触发条件为 `push/PR` 到 `main` 或 `develop`。
+GitHub Actions 工作流定义在 `.github/workflows/backend-quality-gate.yml`，触发条件为 `push/PR` 到 `main` 或 `develop`。
 
 ```
 push/PR → [set up JDK 21 + Node.js + Bruno CLI]
@@ -108,7 +110,7 @@ push/PR → [set up JDK 21 + Node.js + Bruno CLI]
 | 环境准备 | 60s | JDK 21 / Maven 缓存 / Node.js 20 / Bruno CLI |
 | 启动中间件 | 300s | MySQL/Redis/Kafka/Nacos/MinIO |
 | 编译+启动服务 | 600s | mvn clean package + 后台启动 6 服务 |
-| 单元测试 | 300s | JUnit 5 (67 用例) |
+| 单元测试 | 300s | JUnit 5（数量以执行报告为准） |
 | HTTP 测试 | 60s | Bruno 端到端验证 |
 
 ## 项目结构
@@ -124,7 +126,7 @@ campus-collab-platform/
 │   ├── campus-im-service/      # IM 消息服务
 │   ├── campus-seckill-service/ # 秒杀报名服务
 │   └── campus-file-service/    # 文件服务
-├── campus-platform-frontend/   # React Native 前端
+├── campus-platform-frontend/   # Next.js Web 前端
 ├── ai-bot/                     # Python AI Agent
 ├── docker/                     # Docker Compose 编排
 └── docs/                       # 项目文档
@@ -139,7 +141,10 @@ campus-collab-platform/
 
 ## 文档
 
-- [技术架构与项目白皮书](./docs/校园社团协作平台%20——%20技术架构与项目白皮书.md)
+- [Agent 任务入口](tasks.md)：先修复代码与文档一致性并验收，再制定后续方案。
+- [技术架构与项目白皮书](./docs/校园社团协作平台-技术架构与项目白皮书.md)
+- [优化与演进](docs/优化与演进.md)：优化候选、验证方法与分布式部署依据。
+- [Improvement Plan 模板](docs/improvement-plans/TEMPLATE.md) · [Improvement Plan 1：业务闭环与分布式可靠性演进](docs/improvement-plans/improvement-plan-1.md)
 
 ## License
 
