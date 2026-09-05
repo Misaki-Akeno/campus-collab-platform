@@ -38,7 +38,7 @@ P6 总体验收与文档收口
 |---|---|---|---|
 | Git | 分支 `main`，审计起点 `ffe5f0b`；开始时已有文档未提交改动 | 修复结束时的 commit/工作区定位及改动归属 | 进行中 |
 | 后端 | JDK 21.0.6；用户级 Maven 3.9.16；仓库没有 Wrapper。`mvn -B -ntp test` 9/9 reactor 成功，152 tests、0 failures/errors/skipped（1:08）；`mvn -B -ntp package -DskipTests` 9/9 成功（1:46） | 证据见 `test-results/baseline-2026-09-05.md`；仍需 Wrapper 或明确安装步骤保证干净机复现 | 测试与打包通过 |
-| 前端 | Node 22.14.0 / pnpm 11.19.0；`pnpm install --frozen-lockfile --ignore-scripts`、`pnpm exec tsc --noEmit`、`pnpm run build` 通过 | `pnpm run lint` 失败：Next 16.2.5 不再支持 `next lint`，需改 lint 脚本后复测 | 构建通过，lint 待修 |
+| 前端 | Node 22.14.0 / pnpm 11.19.0；已使用 ESLint flat config 替换 Next 16 移除的 `next lint`；依赖安装、`pnpm exec tsc --noEmit`、`pnpm run lint`、`pnpm run build` 均通过 | lint 当前为 0 errors / 9 warnings；warning 清理可单独排期，不阻断门禁 | 本地质量门通过 |
 | AI / Python | Python 3.10 隔离 venv 中 pytest 6/6 通过 | Python 3.12 下 `pydantic==2.6` 与 `langchain-core>=0.2` 解析冲突；本机 SOCKS 代理环境还需补 `socksio` 兼容 | 3.10 通过；3.12 待处理 |
 | 基础设施 | Docker CLI 29.3.1 / Compose 5.1.1，Compose 静态校验通过；Docker Desktop 4.68 引擎因无法删除 stale `Docker\\run\\dockerInference` socket 而崩溃 | 修复 Desktop 引擎后记录健康检查、镜像和端口；当前不能做真实 MySQL/Redis/Kafka/MinIO 验收 | 阻塞，不等于通过 |
 | API 冒烟 | `tests/bruno` 有 15 个请求文件；本次因 Docker 引擎不可用跳过 | 恢复基础设施后记录当前 Bruno 报告、测试账号与数据准备方式 | 未运行 |
